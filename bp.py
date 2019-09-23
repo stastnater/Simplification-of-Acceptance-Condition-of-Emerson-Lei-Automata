@@ -1,5 +1,6 @@
 import spot
 import enum
+import sys
 spot.setup()
 
 ### ACC CLASS ###
@@ -16,8 +17,14 @@ class ACCMark: #TODO: docu
     def __str__(self):
         return ''.join(["Inf" if self.type == MarkType.Inf else "Fin", '(', str(self.num), ')'])
 
+    def __eq__(self, other): 
+        if (self.type == other.type) and (self.num == other.num): 
+            return True
+        else: 
+            return False
 
-class PACC: #TODO: docu
+
+class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
     def __init__(self, acc):
         self.formula = parse_acc(acc)
 
@@ -34,6 +41,19 @@ class PACC: #TODO: docu
                 f.append(" | ")
         return ''.join(f)
 
+    def __getitem__(self, index):
+        return self.formula[index]
+
+    def __len__(self):
+        return len(self.formula)
+
+    def acc_len(self):
+        l = 0
+        for dis in self.formula:
+            for con in dis:
+                l += 1
+        return l
+                
     def int_format(self):
         f = []
         for dis in self.formula:
@@ -43,6 +63,36 @@ class PACC: #TODO: docu
             f.append(d)
         return f
 
+    def resolve_redundancy(self):
+        """
+        int_f = self.int_format()
+        alone_m = []
+        for dis in int_f:
+            if len(dis) == 1:
+                alone_m.append(dis[0])
+        new_f = []
+        for i in range(len(int_f) - 1):
+            if len(int_f[i]) == 1 or all(con not in alone_m for con in int_f[i]):
+                new_f.append(self.formula[i])        
+        
+        self.formula = []
+        for dis in new_f:
+            if dis not in self.formula:
+                self.formula.append(dis)
+                """
+        res_f = self.formula
+        for dis in self.formula:
+            if len(dis) == 1:
+                for dis2 in res_f:
+                    if dis[0] in dis2:
+                        dis2 = dis
+                        print("found redundant dis")
+                   
+        self.formula = []
+        for dis in res_f:
+            if dis not in self.formula:
+                self.formula.append(dis)
+
     def clean_up(self, aut, scc):
         clean_f = []
         marks = scc_current_marks(aut, scc)
@@ -51,9 +101,10 @@ class PACC: #TODO: docu
             for con in dis:
                 if con.num in marks:
                     clean_dis.append(con)
-            if not clean_dis:
+            if clean_dis:
                 clean_f.append(clean_dis)
         self.formula = clean_f
+        self.resolve_redundancy()
 
     def get_mtype(self, m):
         for dis in self.formula:
@@ -61,22 +112,23 @@ class PACC: #TODO: docu
                 if m == con.num:
                     return con.type
 
-    def find_m(self, m): #TODO: delete
-        occurrences = []
-        for i in range(len(self.formula) - 1):
-            for j in range(len(self.formula[i]) - 1):
-                if self.formula[i][j].num == m:
-                    occurrences.append(i,j)
-        return occurrences
-
     def find_m_dis(self, m):
         occurrences = []
-        for i in range(len(self.formula) - 1):
-            for j in range(len(self.formula[i]) - 1):
-                if self.formula[i][j].num == m:
-                    occurrences.append(i)
+        i = 0
+        for dis in self.formula:
+            for con in dis:
+                if con.num == m:
+                    occurrences.append(i)   
+            i += 1   
+        print("found ", m, " at ", occurrences)              
         return occurrences
 
+    def rem_from_dis(self, index, m):
+        new_dis = []
+        for con in self.formula[index]:
+            if con.num != m:
+                new_dis.append(con)
+        self.formula[index] = new_dis
 
 ### PARSE ACC ###
 
@@ -216,53 +268,122 @@ def scc_subsets(aut, scc):
                             is_sub = False
                 if is_sub:
                     subsets.append((m1, m2))
-    return subsets
-    
+    return subsets    
 
-def simpl_inf_con(autacc, scc, subsets):
-    int_acc = autacc[1].int_format()
-    for sub in subsets:
-        if autacc[1].get_mtype(sub[0]) == 1 and autacc[1].get_mtype(sub[1]) == 1:
-            if autacc[1].find_m_dis(sub[0]) == autacc[1].find_m_dis(sub[1]):
-            #TODO: remove all sub[0] marks from aut, clean acc, ret autacc
-                pass
+
+def remove_mark(aut, scc, m): 
+    """
+    Removes mark m from all edges in the given scc.
+
+    Parameters
+    ----------
+    aut : spot::twa        
+    scc : spot::scc_info_node 
+    m   : int
+    """
+
+    for s in scc.states():
+        for e in aut.out(s): 
+            if e.dst in scc.states():
+                if e.acc.has(m):
+                    e.acc.clear(m)
+                     
+                        
+def simpl_inf_con(aut, acc, scc, subsets): #TODO: docu
+    for sub in subsets:        
+        if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
+            sub_i = acc.find_m_dis(sub[1])
+            super_i = acc.find_m_dis(sub[0])
+            if (all(i in sub_i for i in super_i)):
+                print("subset in: ", sub_i, "   superset in: ", super_i)
+                print("inf con removing: ", sub[0])
+                remove_mark(aut, scc, sub[0])
+                acc.clean_up(aut, scc)                            
             else:
-                pass #remove sub[0] at least from dis where it is with sub[1]
+                for i in super_i:
+                    if i in sub_i:
+                        acc.rem_from_dis(i, sub[0])
+
+
+def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
+    for sub in subsets:
+        if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
+            sub_i = acc.find_m_dis(sub[1])
+            super_i = acc.find_m_dis(sub[0])
+            if (all(i in sub_i for i in super_i)):
+                print("fin con removing: ", sub[1])
+                remove_mark(aut, scc, sub[1])
+                acc.clean_up(aut, scc)
+            else:
+                for i in sub_i:
+                    if i in super_i:
+                        acc.rem_from_dis(i, sub[1])
         
                 
+def simpl_inf_dis(aut, acc, scc, subsets):
+    for sub in subsets:
+        if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
+            sub_i = acc.find_m_dis(sub[1])
+            super_i = acc.find_m_dis(sub[0])
+            if (all(len(acc[i]) == 1 for i in sub_i)) and (all(len(acc[i]) == 1 for i in super_i)):
+                print("inf dis removing: ", sub[1])
+                remove_mark(aut, scc, sub[1])
+                acc.clean_up(aut, scc)
 
 
-
-def simpl_subsets(aut, scc, acc):
-    subsets = scc_subsets(aut, scc)
-    autacc = (aut, acc)
-       
 def simplify_compl(aut, scc):
     for cm in scc_compl_marks(aut, scc):
-        pass #TODO:
-
+        pass #TODO: ???
 
 
 ### SIMPLIFY ###
 
 def simplify(aut, scc, acc):
+    acc_l = acc.acc_len()
+    subsets = scc_subsets(aut, scc)
+    acc.clean_up(aut, scc)
+    print("SCC: ", scc.states())
+    print("starting acc: ", acc, "     int format: ", acc.int_format())
+
+    simpl_inf_con(aut, acc, scc, subsets)
+    print(acc)
+    simpl_fin_con(aut, acc, scc, subsets)
+    print(acc)
+    simpl_inf_dis(aut, acc, scc, subsets)
+    print(acc)
+
+
+
+    if acc_l > acc.acc_len():
+        #simplify(aut, scc, acc) TODO: uncomment when done, or iterative?
+        pass
+
     
-    pass
 
 ### MERGE ACCs ###
 
 ### MAIN ###
 
-def main():
-    aut = spot.automaton('necofile.aut')
-    scc_accs = [aut.get_acceptance().to_dnf()]*(spot.scc_info(aut).scc_count())
-    acc_index = 0
+def main(argv):
+    FILENAME = str(sys.argv[1])
+    aut = spot.automaton("/home/tereza/Desktop/bp/" + FILENAME)
+    scc_accs = []
+
+    #print(aut.get_acceptance().to_dnf())
 
     for scc in spot.scc_info(aut):
-        simplify(aut, scc, acc_index)
-        acc_index += 1
+        acc = PACC(aut.get_acceptance().to_dnf())
 
+        print(acc, "\nlen: ", len(acc))
+        print(acc.int_format)
+        print("index 0: ", acc[0])
 
+        simplify(aut, scc, acc)
+        scc_accs.append(acc)
+    
+    aut.save('_' + FILENAME)
+
+"""
 ### PARSE TESTS ###
 def test_parser(filename):
     for aut in spot.automata(filename):
@@ -275,3 +396,7 @@ def test_parser(filename):
 ### RUN TESTS ###
 FILENAME = '/home/tereza/Desktop/bp/allTela.aut'
 test_parser(FILENAME)
+"""
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
