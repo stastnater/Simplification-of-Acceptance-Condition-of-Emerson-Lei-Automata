@@ -64,29 +64,19 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
         return f
 
     def resolve_redundancy(self):
-        """
-        int_f = self.int_format()
-        alone_m = []
-        for dis in int_f:
-            if len(dis) == 1:
-                alone_m.append(dis[0])
-        new_f = []
-        for i in range(len(int_f) - 1):
-            if len(int_f[i]) == 1 or all(con not in alone_m for con in int_f[i]):
-                new_f.append(self.formula[i])        
-        
-        self.formula = []
-        for dis in new_f:
-            if dis not in self.formula:
-                self.formula.append(dis)
-                """
-        res_f = self.formula
+        unit_dis = []
         for dis in self.formula:
             if len(dis) == 1:
-                for dis2 in res_f:
-                    if dis[0] in dis2:
-                        dis2 = dis
-                        print("found redundant dis")
+                unit_dis.append(dis[0])
+
+        res_f = []
+        for dis in self.formula:
+            if len(dis) == 1:
+                res_f.append(dis)
+            else:
+                if all(con not in unit_dis for con in dis):
+                    res_f.append(dis)
+                    print("found redundant dis")
                    
         self.formula = []
         for dis in res_f:
@@ -120,7 +110,7 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
                 if con.num == m:
                     occurrences.append(i)   
             i += 1   
-        print("found ", m, " at ", occurrences)              
+        #print("found ", m, " at ", occurrences)              
         return occurrences
 
     def rem_from_dis(self, index, m):
@@ -130,6 +120,15 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
                 new_dis.append(con)
         self.formula[index] = new_dis
 
+    def rem_dis(self, index):
+        new_f = []
+        i = 0
+        for dis in self.formula:
+            if i != index:
+                new_f.append(dis)
+            i += 1
+        self.formula = new_f
+    
 ### PARSE ACC ###
 
 def parse_acc(acc):
@@ -168,7 +167,7 @@ def parse_acc(acc):
 
 ### SIMPLIFY AUXILIARY ###
 
-def acc_count_occur(acc, m): 
+def acc_count_occur(acc, m): #TODO: move to PACC or delete
     """
     Counts the occurrences of mark m in given acceptance condition.
 
@@ -216,29 +215,20 @@ def scc_current_marks(aut, scc):
     return marks
 
 
-def replace_marks(aut, scc, nm, rm): #replace rm (can contain multiple marks) with nm mark on all edges in scc
-    for s in scc.states():
-        for e in aut.out(s): 
-            if e.dst in scc.states():
-                for m in e.acc.sets():
-                    if rm.has(m):
-                        e.acc.clear(m)                    
-                        e.acc.set(nm)
-
-
-def scc_compl_marks(aut, scc): #return array of tuples of complementary marks in given scc
-    c_marks = []
-    for m1 in scc_current_marks(aut, scc):
-        for m2 in scc_current_marks(aut, scc):
+def scc_compl_sets(aut, scc): #return array of tuples of complementary marks in given scc #TODO: docu
+    compl = []
+    marks = scc_current_marks(aut, scc)
+    for m1 in marks:
+        for m2 in marks:
             if m1 is not m2:            
                 are_compl = True
                 for s in scc.states():
                     for e in aut.out(s):
-                        if e.dst in scc.states and (m1 in e.acc.sets() and m2 in e.acc.sets()) or (m1 not in e.acc.sets() and m2 not in e.acc.sets()):
+                        if e.dst in scc.states() and (m1 in e.acc.sets() and m2 in e.acc.sets()) or (m1 not in e.acc.sets() and m2 not in e.acc.sets()):
                             are_compl = False
-                if are_compl and (m1, m2) not in c_marks and (m2, m1) not in c_marks:
-                    c_marks.append((m1, m2))
-    return c_marks
+                if are_compl and (m1, m2) not in compl and (m2, m1) not in compl:
+                    compl.append((m1, m2))
+    return compl
 
 
 def scc_subsets(aut, scc):
@@ -295,7 +285,7 @@ def simpl_inf_con(aut, acc, scc, subsets): #TODO: docu
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
             if (all(i in sub_i for i in super_i)):
-                print("subset in: ", sub_i, "   superset in: ", super_i)
+                #print("subset in: ", sub_i, "   superset in: ", super_i)
                 print("inf con removing: ", sub[0])
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)                            
@@ -310,7 +300,7 @@ def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
         if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
-            if (all(i in sub_i for i in super_i)):
+            if (all(i in super_i for i in sub_i)):
                 print("fin con removing: ", sub[1])
                 remove_mark(aut, scc, sub[1])
                 acc.clean_up(aut, scc)
@@ -325,25 +315,69 @@ def simpl_inf_dis(aut, acc, scc, subsets):
         if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
-            if (all(len(acc[i]) == 1 for i in sub_i)) and (all(len(acc[i]) == 1 for i in super_i)):
+            if (any(len(acc[i]) == 1 for i in sub_i)) or (any(len(acc[i]) == 1 for i in super_i)):
                 print("inf dis removing: ", sub[1])
                 remove_mark(aut, scc, sub[1])
                 acc.clean_up(aut, scc)
 
 
-def simplify_compl(aut, scc):
-    for cm in scc_compl_marks(aut, scc):
-        pass #TODO: ???
+def simpl_fin_dis(aut, acc, scc, subsets):
+    for sub in subsets:
+        if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
+            sub_i = acc.find_m_dis(sub[1])
+            super_i = acc.find_m_dis(sub[0])
+            if (any(len(acc[i]) == 1 for i in sub_i)) or (any(len(acc[i]) == 1 for i in super_i)):
+                print("fin dis removing: ", sub[0])
+                remove_mark(aut, scc, sub[0])
+                acc.clean_up(aut, scc)
+
+def simpl_co_dis(aut, acc, scc, compl_sets): #TODO:
+    pass
+
+def simpl_co_con(aut, acc, scc, compl_sets):
+    for co in compl_sets:
+        if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
+            inf, fin = co[0], co[1] if acc.get_mtype(co[0]) == MarkType.Inf else co[1], co[0]
+            inf_i = acc.find_m_dis(inf)
+            fin_i = acc.find_m_dis(fin)
+            if all(i in fin_i for i in inf_i):
+                remove_mark(aut, scc, inf)
+                acc.clean_up(aut, scc)
+            else:
+                for i in inf_i:
+                    if i in fin_i:
+                        acc.rem_from_dis(i, inf)
+
+
+def simpl_false(aut, acc, subsets, compl_sets):
+    for sub in subsets:
+        if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Inf:
+            sub_i = acc.find_m_dis(sub[1])
+            super_i = acc.find_m_dis(sub[0])
+            for i in sub_i:
+                if i in super_i:
+                    acc.rem_dis(i)
+                    print("false dis removed at ", i)
+    for co in compl_sets:
+        if acc.get_mtype(co[0]) == MarkType.Fin and acc.get_mtype(co[1]) == MarkType.Fin:
+            co1_i = acc.find_m_dis(co[0])
+            co2_i = acc.find_m_dis(co[1])
+            for i in co1_i:
+                if i in co2_i:
+                    acc.rem_dis(i)
+                    print("false dis removed at ", i)
 
 
 ### SIMPLIFY ###
 
 def simplify(aut, scc, acc):
     acc_l = acc.acc_len()
-    subsets = scc_subsets(aut, scc)
     acc.clean_up(aut, scc)
+    subsets = scc_subsets(aut, scc)
+    compl_sets = scc_compl_sets(aut, scc)
     print("SCC: ", scc.states())
-    print("starting acc: ", acc, "     int format: ", acc.int_format())
+    print("complementary sets: ", compl_sets)
+    #print("starting acc: ", acc, "     int format: ", acc.int_format())
 
     simpl_inf_con(aut, acc, scc, subsets)
     print(acc)
@@ -351,13 +385,15 @@ def simplify(aut, scc, acc):
     print(acc)
     simpl_inf_dis(aut, acc, scc, subsets)
     print(acc)
-
+    simpl_fin_dis(aut, acc, scc, subsets)
+    print(acc)
+    simpl_false(aut, acc, subsets, compl_sets)
+    print(acc)
 
 
     if acc_l > acc.acc_len():
-        #simplify(aut, scc, acc) TODO: uncomment when done, or iterative?
-        pass
-
+        print("RECURSION!")
+        simplify(aut, scc, acc)
     
 
 ### MERGE ACCs ###
@@ -374,14 +410,11 @@ def main(argv):
     for scc in spot.scc_info(aut):
         acc = PACC(aut.get_acceptance().to_dnf())
 
-        print(acc, "\nlen: ", len(acc))
-        print(acc.int_format)
-        print("index 0: ", acc[0])
-
         simplify(aut, scc, acc)
         scc_accs.append(acc)
     
     aut.save('_' + FILENAME)
+
 
 """
 ### PARSE TESTS ###
