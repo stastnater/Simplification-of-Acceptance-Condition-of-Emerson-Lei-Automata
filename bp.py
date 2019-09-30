@@ -128,6 +128,7 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
                 new_f.append(dis)
             i += 1
         self.formula = new_f
+
     
 ### PARSE ACC ###
 
@@ -167,28 +168,21 @@ def parse_acc(acc):
 
 ### SIMPLIFY AUXILIARY ###
 
-def acc_count_occur(acc, m): #TODO: move to PACC or delete
-    """
-    Counts the occurrences of mark m in given acceptance condition.
-
-    Parameters
-    ----------
-    acc : PACC
-    m : int
-        Number of an acceptance mark
-
-    Returns
-    -------
-    int
-        Amount of occurrences of m in acc.
-    """
-
-    occur = 0
-    for dis in acc:
+def scc_clean_up_edges(aut, acc, scc):
+    current_m = []
+    for dis in acc.formula:
         for con in dis:
-            if con.num == m:
-                occur += 1
-    return occur
+            if con.num not in current_m:
+                current_m.append(con.num)
+
+    for s in scc.states():
+        for e in aut.out(s):
+            for m in e.acc.sets():
+                if int(m) not in current_m:
+                    print("REMOVING mark from edge: ", m)
+                    e.acc.clear(m)
+
+
 
 
 def scc_current_marks(aut, scc): 
@@ -331,13 +325,24 @@ def simpl_fin_dis(aut, acc, scc, subsets):
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)
 
-def simpl_co_dis(aut, acc, scc, compl_sets): #TODO:
-    pass
-
-def simpl_co_con(aut, acc, scc, compl_sets):
+def simpl_co_dis(aut, acc, scc, compl_sets): 
     for co in compl_sets:
         if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
-            inf, fin = co[0], co[1] if acc.get_mtype(co[0]) == MarkType.Inf else co[1], co[0]
+            inf, fin = co[0], co[1] 
+            if acc.get_mtype(co[0]) == MarkType.Fin:
+                inf, fin = co[1], co[0]
+            inf_i = acc.find_m_dis(inf)
+            fin_i = acc.find_m_dis(fin)
+            if all(i not in fin_i for i in inf_i):
+                remove_mark(aut, scc, fin)
+                acc.clean_up(aut, scc)
+
+def simpl_co_con(aut, acc, scc, compl_sets): #TODO: is redundant?
+    for co in compl_sets:
+        if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
+            inf, fin = co[0], co[1] 
+            if (acc.get_mtype(co[0]) == MarkType.Fin):
+                 inf, fin = co[1], co[0]
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
             if all(i in fin_i for i in inf_i):
@@ -376,20 +381,19 @@ def simplify(aut, scc, acc):
     subsets = scc_subsets(aut, scc)
     compl_sets = scc_compl_sets(aut, scc)
     print("SCC: ", scc.states())
-    print("complementary sets: ", compl_sets)
-    #print("starting acc: ", acc, "     int format: ", acc.int_format())
+    print("starting acc: ", acc)
 
     simpl_inf_con(aut, acc, scc, subsets)
-    print(acc)
     simpl_fin_con(aut, acc, scc, subsets)
-    print(acc)
     simpl_inf_dis(aut, acc, scc, subsets)
-    print(acc)
     simpl_fin_dis(aut, acc, scc, subsets)
-    print(acc)
     simpl_false(aut, acc, subsets, compl_sets)
+    simpl_co_con(aut, acc, scc, compl_sets)
+    simpl_co_dis(aut, acc, scc, compl_sets)
+    scc_clean_up_edges(aut, acc, scc)
     print(acc)
 
+    acc.formula.sort(key=len)
 
     if acc_l > acc.acc_len():
         print("RECURSION!")
@@ -397,6 +401,10 @@ def simplify(aut, scc, acc):
     
 
 ### MERGE ACCs ###
+
+def make_matrix(acc1, acc2):
+    pass #TODO:
+
 
 ### MAIN ###
 
