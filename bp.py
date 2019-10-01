@@ -393,8 +393,6 @@ def simplify(aut, scc, acc):
     scc_clean_up_edges(aut, acc, scc)
     print(acc)
 
-    acc.formula.sort(key=len)
-
     if acc_l > acc.acc_len():
         print("RECURSION!")
         simplify(aut, scc, acc)
@@ -402,8 +400,42 @@ def simplify(aut, scc, acc):
 
 ### MERGE ACCs ###
 
+def remove_new_depend():
+    pass
+
+def count_cost(dis1, dis2):
+    inf, fin = 0, 0
+    for con in dis1:
+        if con.type == MarkType.Inf:
+            inf -= 1
+        else:
+            fin -= 1
+    for con in dis2:
+        if con.type == MarkType.Inf:
+            inf += 1
+        else:
+            fin += 1
+    return inf + fin
+
 def make_matrix(acc1, acc2):
-    pass #TODO:
+    m = []
+    for dis1 in acc1:
+        row = []
+        for dis2 in acc2:
+            row.append(count_cost(dis1, dis2))
+    m.append(row)
+
+def merge_accs(scc_accs):
+    log = []
+    for acc in scc_accs:
+        acc.formula = acc.formula.sort(key=len)
+    print(scc_accs)
+
+    merged_f = scc_accs[0]
+    for i in range(1, len(scc_accs) - 1):
+        m1 = make_matrix(merged_f, scc_accs[i])
+        #TODO: solve
+        #TODO: try reversed matrix
 
 
 ### MAIN ###
@@ -420,6 +452,8 @@ def main(argv):
 
         simplify(aut, scc, acc)
         scc_accs.append(acc)
+
+    merge_accs(scc_accs)
     
     aut.save('_' + FILENAME)
 
