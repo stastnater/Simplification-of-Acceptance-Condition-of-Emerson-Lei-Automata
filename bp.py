@@ -1,6 +1,7 @@
 import spot
 import enum
 import sys
+from scipy.optimize import linear_sum_assignment
 spot.setup()
 
 ### ACC CLASS ###
@@ -53,6 +54,17 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
             for con in dis:
                 l += 1
         return l
+
+    def count_unique_m(self):
+        inf = []
+        fin = []
+        for dis in self.formula:
+            for con in dis:
+                if con.type == MarkType.Inf and con.num not in inf:
+                    inf.append(con.num)
+                if con.type == MarkType.Fin and con.num not in fin:
+                    fin.append(con.num)
+        return len(inf), len(fin)
                 
     def int_format(self):
         f = []
@@ -287,6 +299,7 @@ def simpl_inf_con(aut, acc, scc, subsets): #TODO: docu
                 for i in super_i:
                     if i in sub_i:
                         acc.rem_from_dis(i, sub[0])
+                        acc.clean_up(aut, scc)
 
 
 def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
@@ -302,6 +315,7 @@ def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
                 for i in sub_i:
                     if i in super_i:
                         acc.rem_from_dis(i, sub[1])
+                        acc.clean_up(aut, scc)
         
                 
 def simpl_inf_dis(aut, acc, scc, subsets):
@@ -325,6 +339,7 @@ def simpl_fin_dis(aut, acc, scc, subsets):
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)
 
+
 def simpl_co_dis(aut, acc, scc, compl_sets): 
     for co in compl_sets:
         if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
@@ -336,6 +351,7 @@ def simpl_co_dis(aut, acc, scc, compl_sets):
             if all(i not in fin_i for i in inf_i):
                 remove_mark(aut, scc, fin)
                 acc.clean_up(aut, scc)
+
 
 def simpl_co_con(aut, acc, scc, compl_sets): #TODO: is redundant?
     for co in compl_sets:
@@ -352,6 +368,7 @@ def simpl_co_con(aut, acc, scc, compl_sets): #TODO: is redundant?
                 for i in inf_i:
                     if i in fin_i:
                         acc.rem_from_dis(i, inf)
+                        acc.clean_up(aut, scc)
 
 
 def simpl_false(aut, acc, subsets, compl_sets):
@@ -375,7 +392,7 @@ def simpl_false(aut, acc, subsets, compl_sets):
 
 ### SIMPLIFY ###
 
-def simplify(aut, scc, acc):
+def simplify(aut, acc, scc):
     acc_l = acc.acc_len()
     acc.clean_up(aut, scc)
     subsets = scc_subsets(aut, scc)
@@ -394,14 +411,36 @@ def simplify(aut, scc, acc):
     print(acc)
 
     if acc_l > acc.acc_len():
-        print("RECURSION!")
-        simplify(aut, scc, acc)
+        simplify(aut, acc, scc)
     
 
-### MERGE ACCs ###
+### MERGE AUXILIARY ###
+def shift_fst_acc(aut, acc, scc):
+    next_m = aut.acc().num_sets()
+    log = {}
 
-def remove_new_depend():
-    pass
+    for dis in acc.formula:
+        for con in dis:
+            if con.num in log:
+                con.num = log[con.num]
+            else:
+                add_dupl_marks(aut, scc, con.num, next_m)
+                log[con.num] = next_m
+                con.num = next_m
+                next_m += 1
+    scc_clean_up_edges(aut, acc, scc)
+
+    int_f = acc.int_format
+    for dis1 in int_f:
+        for dis2 in int_f:
+            intersect = list(set(dis1).intersection(dis2))
+            if dis1 is not dis2 and intersect:
+                for m in intersect:
+                    inf, fin = acc.count_unique_m()
+                    max_inf, max_fin = PACC(aut.get_acceptance().to_dnf()).count_unique_m()
+                    if acc.get_mtype(m) == MarkType.Inf: #TODO: pokud to neni pres max tak pridam dalsi znacku next_m, nezapomen na fin
+                        pass
+
 
 def count_cost(dis1, dis2):
     inf, fin = 0, 0
@@ -415,7 +454,12 @@ def count_cost(dis1, dis2):
             inf += 1
         else:
             fin += 1
+    if inf < 0:
+        inf = 0
+    if fin < 0:
+        fin = 0
     return inf + fin
+
 
 def make_matrix(acc1, acc2):
     m = []
@@ -424,18 +468,63 @@ def make_matrix(acc1, acc2):
         for dis2 in acc2:
             row.append(count_cost(dis1, dis2))
     m.append(row)
+    return m
 
-def merge_accs(scc_accs):
-    log = []
-    for acc in scc_accs:
-        acc.formula = acc.formula.sort(key=len)
-    print(scc_accs)
 
-    merged_f = scc_accs[0]
-    for i in range(1, len(scc_accs) - 1):
-        m1 = make_matrix(merged_f, scc_accs[i])
-        #TODO: solve
-        #TODO: try reversed matrix
+def add_dupl_marks(aut, scc, origin_m, new_m):
+    for s in scc.states():
+        for e in aut.out(s):
+            if e.dst in scc.states() and e.acc.has(origin_m):
+                if not e.acc.has(new_m):
+                    e.acc.set(new_m)
+
+def merge_disjuncts(aut, scc, dis1, dis2):
+    used = [False]*len(dis1)
+    print(used)
+    for con in dis2:
+        
+        if con in dis1 and not used[dis1.find(con)]:
+            used[dis1.find(con)] = True
+        else: 
+            for i in range(len(dis1) -1):
+                if dis1[i].type == con.type and not used[i]:
+                    add_dupl_marks(aut, scc, con.num, dis1[i].num)
+                    used[i] = True
+                    break
+
+
+                    
+
+def remove_new_depend(): #TODO:
+    pass
+
+### MERGE ###
+
+def merge_accs(aut, sccs, accs): #TODO:
+    # log = [] TODO: needed?
+    nempty_accs = []
+    nempty_sccs = []
+    #TODO: figure out this sorting shit
+    print("final accs: ")
+    for i in range(len(accs) - 1):
+        if accs[i].formula:
+            nempty_accs.append(accs[i])
+            nempty_sccs.append(sccs[i])
+            print(accs[i])
+
+    shift_fst_acc(aut, nempty_accs[0], nempty_sccs[0])
+    merged_f = nempty_accs[0]
+    for i in range(1, len(nempty_accs) - 1):
+        m = make_matrix(merged_f, nempty_accs[i])
+        print("accs: ", merged_f, " and ", nempty_accs[i])
+        print(m)
+        row_ind, col_ind = linear_sum_assignment(m) 
+        print("row ind: ", row_ind, " col ind: ", col_ind)
+        for j in range(len(row_ind) - 1):
+            dis1 = merged_f[col_ind[j]]
+            dis2 = nempty_accs[i][row_ind[j]]
+            print("will merge: ", dis1, dis2)
+            
 
 
 ### MAIN ###
@@ -443,17 +532,18 @@ def merge_accs(scc_accs):
 def main(argv):
     FILENAME = str(sys.argv[1])
     aut = spot.automaton("/home/tereza/Desktop/bp/" + FILENAME)
-    scc_accs = []
+    accs = []
+    sccs = []
 
     #print(aut.get_acceptance().to_dnf())
-
     for scc in spot.scc_info(aut):
+        sccs.append(scc)
         acc = PACC(aut.get_acceptance().to_dnf())
 
-        simplify(aut, scc, acc)
-        scc_accs.append(acc)
+        simplify(aut, acc, scc)
+        accs.append(acc)
 
-    merge_accs(scc_accs)
+    merge_accs(aut, sccs, accs)
     
     aut.save('_' + FILENAME)
 
