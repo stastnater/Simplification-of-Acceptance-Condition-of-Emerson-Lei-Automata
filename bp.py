@@ -1,6 +1,7 @@
 import spot
 import enum
 import sys
+import copy
 from scipy.optimize import linear_sum_assignment
 spot.setup()
 
@@ -65,6 +66,14 @@ class PACC: #TODO: docu #NO OH GOD NO NO NOOOOOOOOOO
                 if con.type == MarkType.Fin and con.num not in fin:
                     fin.append(con.num)
         return len(inf), len(fin)
+
+    def max(self):
+        m = self.formula[0][0].num
+        for dis in self.formula:
+            for con in dis:
+                if con.num > m:
+                    m = con.num
+        return m
                 
     def int_format(self):
         f = []
@@ -237,6 +246,7 @@ def scc_compl_sets(aut, scc): #return array of tuples of complementary marks in 
     return compl
 
 
+
 def scc_subsets(aut, scc):
     """
     Return a list of tuples (m1, m2) containing acceptance marks m1 and m2 where m2 is a subset of m1 in given scc.
@@ -264,7 +274,8 @@ def scc_subsets(aut, scc):
                             is_sub = False
                 if is_sub:
                     subsets.append((m1, m2))
-    return subsets    
+    return subsets 
+ 
 
 
 def remove_mark(aut, scc, m): 
@@ -415,32 +426,6 @@ def simplify(aut, acc, scc):
     
 
 ### MERGE AUXILIARY ###
-def shift_fst_acc(aut, acc, scc):
-    next_m = aut.acc().num_sets()
-    log = {}
-
-    for dis in acc.formula:
-        for con in dis:
-            if con.num in log:
-                con.num = log[con.num]
-            else:
-                add_dupl_marks(aut, scc, con.num, next_m)
-                log[con.num] = next_m
-                con.num = next_m
-                next_m += 1
-    scc_clean_up_edges(aut, acc, scc)
-
-    int_f = acc.int_format
-    for dis1 in int_f:
-        for dis2 in int_f:
-            intersect = list(set(dis1).intersection(dis2))
-            if dis1 is not dis2 and intersect:
-                for m in intersect:
-                    inf, fin = acc.count_unique_m()
-                    max_inf, max_fin = PACC(aut.get_acceptance().to_dnf()).count_unique_m()
-                    if acc.get_mtype(m) == MarkType.Inf: #TODO: pokud to neni pres max tak pridam dalsi znacku next_m, nezapomen na fin
-                        pass
-
 
 def count_cost(dis1, dis2):
     inf, fin = 0, 0
@@ -471,59 +456,94 @@ def make_matrix(acc1, acc2):
     return m
 
 
-def add_dupl_marks(aut, scc, origin_m, new_m):
+def replace_marks(aut, scc, origin_m, new_m):
     for s in scc.states():
         for e in aut.out(s):
             if e.dst in scc.states() and e.acc.has(origin_m):
+                e.acc.clear(origin_m)
                 if not e.acc.has(new_m):
                     e.acc.set(new_m)
 
-def merge_disjuncts(aut, scc, dis1, dis2):
-    used = [False]*len(dis1)
-    print(used)
-    for con in dis2:
-        
-        if con in dis1 and not used[dis1.find(con)]:
-            used[dis1.find(con)] = True
-        else: 
-            for i in range(len(dis1) -1):
-                if dis1[i].type == con.type and not used[i]:
-                    add_dupl_marks(aut, scc, con.num, dis1[i].num)
-                    used[i] = True
-                    break
-
-
-                    
 
 def remove_new_depend(): #TODO:
     pass
 
+
+def partition(accs, sccs, low, high): 
+    i = (low - 1)         # index of smaller element 
+    pivot = (accs[high].acc_len())
+  
+    for j in range(low , high):   
+        if   (accs[j].acc_len()) > pivot:           
+            i += 1 
+            accs[i], accs[j] = accs[j], accs[i] 
+            sccs[i], sccs[j] = sccs[j], sccs[i]
+  
+    accs[i + 1], accs[high] = accs[high], accs[i + 1] 
+    sccs[i + 1], sccs[high] = sccs[high], sccs[i + 1]
+    return (i + 1) 
+  
+def acc_quicksort(accs, sccs, low, high): 
+    if low < high: 
+   
+        pi = partition(accs, sccs, low, high) 
+  
+        acc_quicksort(accs, sccs, low, pi - 1) 
+        acc_quicksort(accs, sccs, pi + 1, high) 
+
+def place_con(dis, con, used):
+    if con in dis and not used[dis.find(con)]:
+        return dis.find(con)
+    for i in range(len(dis) - 1):
+        if dis[i].type == con.type and not used[i]:
+            return i
+    return None
+        
+
 ### MERGE ###
 
+def merge(aut, acc1, scc1, acc2, scc2):
+    m = make_matrix(acc1, acc2)
+    print("accs: ", acc1, " and ", acc2)
+    print(m)
+    row_ind, col_ind = linear_sum_assignment(m) 
+    print("row ind: ", row_ind, " col ind: ", col_ind)
+    for i in range(len(row_ind) - 1):
+        dis1 = acc1[col_ind[j]]
+        used = [False] * len(dis1)
+        dis2 = acc2[i][row_ind[j]]
+        print("will merge: ", dis1, dis2)
+        for con in dis2:
+            index = place_con(dis1, con, used):
+            if index is None:
+                dis1.append(ACCMark(con.type, acc1.max + 1))
+                used.append(True)
+            else:
+                replace_marks(aut, scc2, con.num, dis1[index].num)
+                used[index] = True
+
+                        
 def merge_accs(aut, sccs, accs): #TODO:
-    # log = [] TODO: needed?
     nempty_accs = []
     nempty_sccs = []
-    #TODO: figure out this sorting shit
-    print("final accs: ")
+
     for i in range(len(accs) - 1):
         if accs[i].formula:
             nempty_accs.append(accs[i])
             nempty_sccs.append(sccs[i])
-            print(accs[i])
 
-    shift_fst_acc(aut, nempty_accs[0], nempty_sccs[0])
-    merged_f = nempty_accs[0]
+    acc_quicksort(nempty_accs, nempty_sccs, 0, len(nempty_accs) - 1)
+    
+    ### TODO: REMOVE
+    for acc in nempty_accs:
+        print(acc)
+    return
+    ###
+    
+    log = []
+    merged_f = copy.deepcopy(nempty_accs[0])
     for i in range(1, len(nempty_accs) - 1):
-        m = make_matrix(merged_f, nempty_accs[i])
-        print("accs: ", merged_f, " and ", nempty_accs[i])
-        print(m)
-        row_ind, col_ind = linear_sum_assignment(m) 
-        print("row ind: ", row_ind, " col ind: ", col_ind)
-        for j in range(len(row_ind) - 1):
-            dis1 = merged_f[col_ind[j]]
-            dis2 = nempty_accs[i][row_ind[j]]
-            print("will merge: ", dis1, dis2)
+        merge(aut, merged_f, nempty_sccs[0], nempty_accs[i], nempty_sccs[i])
             
 
 
