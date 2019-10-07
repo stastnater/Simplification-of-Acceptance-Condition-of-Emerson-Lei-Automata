@@ -313,7 +313,9 @@ def simpl_inf_con(aut, acc, scc, subsets): #TODO: docu
                         acc.clean_up(aut, scc)
 
 
-def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
+def simpl_fin_con(aut, acc, scc, subsets):
+    #TODO: count dis with fin, if discount < unique fin -> merge all fins in each dis
+    # else: find all pairs which always appear together -> merge them -> recursively?
     for sub in subsets:
         if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
             sub_i = acc.find_m_dis(sub[1])
@@ -329,7 +331,18 @@ def simpl_fin_con(aut, acc, scc, subsets): #TODO: docu
                         acc.clean_up(aut, scc)
         
                 
-def simpl_inf_dis(aut, acc, scc, subsets):
+def simpl_inf_dis(aut, acc, scc):
+    unit_inf = []
+    for dis in acc.formula:
+        if len(dis) == 1 and dis[0].type == MarkType.Inf:
+            unit_inf.append(dis)
+    if len(unit_inf) < 2:
+        return
+    for i in range(1, len(unit_inf) - 1):
+        replace_marks(aut, scc, unit_inf[i][0].num, unit_inf[0][0].num)
+    acc.clean_up(aut, scc)            
+
+    """ if restored add subsets to param
     for sub in subsets:
         if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
             sub_i = acc.find_m_dis(sub[1])
@@ -338,7 +351,7 @@ def simpl_inf_dis(aut, acc, scc, subsets):
                 print("inf dis removing: ", sub[1])
                 remove_mark(aut, scc, sub[1])
                 acc.clean_up(aut, scc)
-
+    """
 
 def simpl_fin_dis(aut, acc, scc, subsets):
     for sub in subsets:
@@ -413,7 +426,7 @@ def simplify(aut, acc, scc):
 
     simpl_inf_con(aut, acc, scc, subsets)
     simpl_fin_con(aut, acc, scc, subsets)
-    simpl_inf_dis(aut, acc, scc, subsets)
+    simpl_inf_dis(aut, acc, scc)
     simpl_fin_dis(aut, acc, scc, subsets)
     simpl_false(aut, acc, subsets, compl_sets)
     simpl_co_con(aut, acc, scc, compl_sets)
@@ -448,11 +461,14 @@ def count_cost(dis1, dis2):
 
 def make_matrix(acc1, acc2):
     m = []
-    for dis1 in acc1:
+    for i in range(len(acc1)):
         row = []
-        for dis2 in acc2:
-            row.append(count_cost(dis1, dis2))
-    m.append(row)
+        for j in range(len(acc1)):
+            if j >= len(acc2):
+                row.append(0)
+            else:
+                row.append(count_cost(acc1[i], acc2[j]))
+        m.append(row)
     return m
 
 
@@ -465,16 +481,12 @@ def replace_marks(aut, scc, origin_m, new_m):
                     e.acc.set(new_m)
 
 
-def remove_new_depend(): #TODO:
-    pass
-
-
 def partition(accs, sccs, low, high): 
     i = (low - 1)         # index of smaller element 
-    pivot = (accs[high].acc_len())
+    pivot = len(accs[high])
   
     for j in range(low , high):   
-        if   (accs[j].acc_len()) > pivot:           
+        if   len(accs[j]) > pivot:           
             i += 1 
             accs[i], accs[j] = accs[j], accs[i] 
             sccs[i], sccs[j] = sccs[j], sccs[i]
@@ -492,13 +504,28 @@ def acc_quicksort(accs, sccs, low, high):
         acc_quicksort(accs, sccs, pi + 1, high) 
 
 def place_con(dis, con, used):
-    if con in dis and not used[dis.find(con)]:
-        return dis.find(con)
-    for i in range(len(dis) - 1):
+    if con in dis and not used[dis.index(con)]:
+        return dis.index(con)
+    for i in range(len(dis)):
         if dis[i].type == con.type and not used[i]:
             return i
     return None
         
+def resolve_dependencies(aut, acc1, scc1, acc2):
+    depend = []
+    int_f = acc1.int_format()
+    for i in range(len(int_f)):
+        for j in range(len(int_f)):
+            intersect = list(set(int_f[i]).intersection(set(int_f[j])))
+            if i != j and intersect:
+                for mark in intersect:
+                    depend.append((mark, i, j))
+    m = make_matrix(acc1, acc2)
+    row_ind, col_ind = linear_sum_assignment(m) 
+    
+
+
+
 
 ### MERGE ###
 
@@ -508,26 +535,32 @@ def merge(aut, acc1, scc1, acc2, scc2):
     print(m)
     row_ind, col_ind = linear_sum_assignment(m) 
     print("row ind: ", row_ind, " col ind: ", col_ind)
-    for i in range(len(row_ind) - 1):
-        dis1 = acc1[col_ind[j]]
+
+    log = []
+    m_log = []
+    for i in range(len(row_ind)):
+        dis1 = acc1[col_ind[i]]
         used = [False] * len(dis1)
-        dis2 = acc2[i][row_ind[j]]
-        print("will merge: ", dis1, dis2)
+        dis2 = []
+        if row_ind[i] < len(acc2):
+            dis2 = acc2[row_ind[i]]
+        print("will merge: ", row_ind[i], col_ind[i])
         for con in dis2:
-            index = place_con(dis1, con, used):
+            index = place_con(dis1, con, used)
             if index is None:
-                dis1.append(ACCMark(con.type, acc1.max + 1))
+                m_log.append((None, acc1.max() + 1))
+                dis1.append(ACCMark(con.type, acc1.max() + 1))
                 used.append(True)
             else:
+                log.append((con.num, dis1[index].num))
                 replace_marks(aut, scc2, con.num, dis1[index].num)
                 used[index] = True
-
                         
 def merge_accs(aut, sccs, accs): #TODO:
     nempty_accs = []
     nempty_sccs = []
 
-    for i in range(len(accs) - 1):
+    for i in range(len(accs)):
         if accs[i].formula:
             nempty_accs.append(accs[i])
             nempty_sccs.append(sccs[i])
@@ -537,13 +570,22 @@ def merge_accs(aut, sccs, accs): #TODO:
     ### TODO: REMOVE
     for acc in nempty_accs:
         print(acc)
-    return
     ###
     
-    log = []
     merged_f = copy.deepcopy(nempty_accs[0])
+
+    """
+    for dis1 in merged_f.int_format():
+        for dis2 in merged_f.int_format():
+            if dis1 != dis2 and list(set(dis1).intersection(set(dis2))):
+                for i in range(1, len(nempty_accs) - 1):
+                    resolve_dependencies(aut, merged_f, nempty_sccs[0], nempty_accs[i])
+                break
+    """
+    log = []
     for i in range(1, len(nempty_accs) - 1):
         merge(aut, merged_f, nempty_sccs[0], nempty_accs[i], nempty_sccs[i])
+    print(merged_f)
             
 
 
