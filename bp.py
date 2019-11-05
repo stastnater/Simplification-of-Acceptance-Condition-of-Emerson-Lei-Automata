@@ -94,10 +94,8 @@ class PACC:
         for dis in self.formula:
             if len(dis) == 1:
                 res_f.append(dis)
-            else:
-                if all(con not in unit_dis for con in dis):
+            elif all(con not in unit_dis for con in dis):
                     res_f.append(dis)
-                    print("found redundant dis")
                    
         self.formula = []
         for dis in res_f:
@@ -300,15 +298,16 @@ def simpl_inf_con(aut, acc, scc, subsets):
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
             if (all(i in sub_i for i in super_i)):
-                #print("subset in: ", sub_i, "   superset in: ", super_i)
-                print("inf con removing: ", sub[0])
+                print("inf con removing: ", sub[0], " IN SCC: ", scc.states())
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)                            
+            """ #TODO: but why
             else:
                 for i in super_i:
                     if i in sub_i:
                         acc.rem_from_dis(i, sub[0])
                         acc.clean_up(aut, scc)
+            """
 
 def simpl_fin_con(aut, acc, scc):
     #TODO: count dis with fin, if discount < unique fin -> merge all fins in each dis
@@ -327,6 +326,7 @@ def simpl_fin_con(aut, acc, scc):
                         merge = False
                 if merge:
                     replace_marks(aut, scc, fin2.num, fin1.num)
+                    print("fin con removing: ", fin2.num, " IN SCC: ", scc.states())
                     acc.clean_up(aut, scc)
                     simpl_fin_con(aut, acc, scc)
                     return
@@ -340,6 +340,7 @@ def simpl_fin_con_subsets(aut, acc, scc, subsets):
             if (all(i in super_i for i in sub_i)):
                 print("fin con removing: ", sub[1])
                 remove_mark(aut, scc, sub[1])
+                print("fin con subsets removing: ", sub[1], " IN SCC: ", scc.states())
                 acc.clean_up(aut, scc)
             else:
                 for i in sub_i:
@@ -355,6 +356,7 @@ def simpl_inf_dis(aut, acc, scc, subsets):
             super_i = acc.find_m_dis(sub[0])
             if any(len(acc[i]) == 1 for i in sub_i):
                 remove_mark(aut, scc, sub[1])
+                print("inf dis removing: ", sub[1], " IN SCC: ", scc.states(), "original acc: ", acc)
                 acc.clean_up(aut, scc)
     
     #TODO: co dela? da se zlepsit?
@@ -366,6 +368,7 @@ def simpl_inf_dis(aut, acc, scc, subsets):
         return
     for i in range(1, len(unit_inf)):
         replace_marks(aut, scc, unit_inf[i][0].num, unit_inf[0][0].num)
+        print("inf dis removing: ", unit_inf[i][0], " IN SCC: ", scc.states())
     acc.clean_up(aut, scc) 
     
 
@@ -375,7 +378,7 @@ def simpl_fin_dis(aut, acc, scc, subsets):
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
             if (any(len(acc[i]) == 1 for i in super_i)):
-                print("fin dis removing: ", sub[0])
+                print("fin dis removing: ", sub[0], " IN SCC: ", scc.states())
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)
 
@@ -388,8 +391,9 @@ def simpl_co_dis(aut, acc, scc, compl_sets):
                 inf, fin = co[1], co[0]
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
-            if all(i not in fin_i for i in inf_i):
+            if all(i not in fin_i for i in inf_i) and all(len(acc[j]) == 1 for j in fin_i):
                 remove_mark(aut, scc, fin)
+                print("removing compl mark: ", fin, " IN SCC: ", scc.states())
                 acc.clean_up(aut, scc)
 
 
@@ -403,6 +407,7 @@ def simpl_co_con(aut, acc, scc, compl_sets): #TODO: check if works
             fin_i = acc.find_m_dis(fin)
             if all(i in fin_i for i in inf_i):
                 remove_mark(aut, scc, inf)
+                print("removing compl mark: ", inf, " IN SCC: ", scc.states())
                 acc.clean_up(aut, scc)
             else:
                 for i in inf_i:
@@ -419,8 +424,9 @@ def simpl_false(aut, acc, subsets, compl_sets, scc):
             if con.num not in current_marks and con.type == MarkType.Inf:
                 rem_d.append(i)
                 break  
-    for index in reversed(range(len(rem_d))):
+    for index in reversed(rem_d):
         acc.rem_dis(index)
+        print("SCC: ", scc.states(), "removing disjunct: ", index, " because marks in acc not on edges")
     acc.clean_up(aut, scc)
 
     for sub in subsets:
@@ -430,6 +436,7 @@ def simpl_false(aut, acc, subsets, compl_sets, scc):
             for i in sub_i:
                 if i in super_i:
                     acc.rem_dis(i)
+                    print("SCC: ", scc.states(), "removing disjunct: ", i, " fin marks are superset to inf marks")
 
     rem_dis = []
     for i in range(len(acc)):
@@ -444,6 +451,7 @@ def simpl_false(aut, acc, subsets, compl_sets, scc):
                     current_dis = False
         if current_dis:
             rem_dis.append(i)
+            print("SCC: ", scc.states(), "removing disjunct: ", i, "fins on all edges")
     for i in rem_dis:
         acc.rem_dis(i)
 
@@ -478,14 +486,27 @@ def simplify(aut, acc, scc):
     subsets = scc_subsets(aut, scc)
     compl_sets = scc_compl_sets(aut, scc)
 
+    # remove always false disjuncts
     simpl_false(aut, acc, subsets, compl_sets, scc)
+    subsets = scc_subsets(aut, scc)
+    compl_sets = scc_compl_sets(aut, scc)
+
+    # simplify mark subsets
+    simpl_inf_con(aut, acc, scc, subsets)
+    subsets = scc_subsets(aut, scc)
     simpl_fin_con_subsets(aut, acc, scc, subsets)
+    subsets = scc_subsets(aut, scc)
     simpl_inf_dis(aut, acc, scc, subsets)
+    subsets = scc_subsets(aut, scc)
     simpl_fin_dis(aut, acc, scc, subsets)
+    
+    # simplify complementary marks
     simpl_co_con(aut, acc, scc, compl_sets)
+    compl_sets = scc_compl_sets(aut, scc)
     simpl_co_dis(aut, acc, scc, compl_sets)
+
     scc_clean_up_edges(aut, acc, scc)
-    print(acc)
+    print("STATES ", scc.states(), ": ", acc)
 
     if acc_l > acc.acc_len():
         simplify(aut, acc, scc)
@@ -626,6 +647,7 @@ def resolve_dependencies(aut, acc1, scc1, acc2, scc2):
             # dependencies needn't be removed
             if d1[0].type == d2[0].type and all(d1[i] in d2 for i in range(1, len(d1))):
                 add_dupl_marks(aut, scc2, d2[0].num, d1[0].num) #TODO: possibly replace, not duplicate
+                print("dependency removed: ", d2[0].num, " changed to ", d1[0].num, " in scc: ", scc2.states())
                 log[1][d1[0].num] = d2[0].num      
                 for dis in acc2:
                     for con in dis:
@@ -649,8 +671,9 @@ def resolve_dependencies(aut, acc1, scc1, acc2, scc2):
 
 def merge(aut, acc1, scc1, acc2, scc2):
     m = make_matrix(acc1, acc2)
+    print("matrix: \n", m)
     row_ind, col_ind = linear_sum_assignment(m) 
-    
+    print("indices: ", row_ind, " X ", col_ind)
     log = (scc2, {})
     for i in range(len(row_ind)):
         dis1 = acc1[col_ind[i]]
@@ -662,6 +685,12 @@ def merge(aut, acc1, scc1, acc2, scc2):
             index = place_con(dis1, con, used)
             if index is None:
                 log[1][con.num] = acc1.max() + 1
+                if con.type == MarkType.Inf:
+                    for s in scc1.states():
+                        for e in aut.out(s):
+                            if e.dst in scc1.states():
+                                e.acc.set(acc1.max() + 1) 
+                replace_marks(aut, scc2, con.num, acc1.max() + 1)
                 dis1.append(ACCMark(con.type, acc1.max() + 1))
                 used.append(True)
             else:
@@ -689,6 +718,7 @@ def merge_accs(aut, sccs, accs):
     acc_quicksort(nempty_accs, nempty_sccs, 0, len(nempty_accs) - 1)
     
     merged_f = PACC(str(nempty_accs[0]))
+    print("NEW ACC TO USE FOR MERGE: ", merged_f)
     shift_fst_acc(aut, merged_f, nempty_sccs[0])
     
     logs = []
@@ -722,10 +752,11 @@ def make_false(aut, scc, merged_acc):
                 for m in e.acc.sets():
                     e.acc.clear(m)
     add_m = []
-    print("MAKE FALSE: ", scc.states(), "ADDING: ", add_m)
     for dis in merged_acc.formula:
         if all(con.type == MarkType.Fin for con in dis):
             add_m.append(dis[0].num)
+    
+    print("MAKE FALSE: ", scc.states(), "ADDING: ", add_m)
     if not add_m:
         return
     for s in scc.states():
@@ -735,7 +766,10 @@ def make_false(aut, scc, merged_acc):
                     e.acc.set(m)
 
 def make_equiv(aut, accs, sccs, logs, merged_acc):
-    for i in range(1, len(accs)):
+    print_edges(aut, sccs)
+    for i in range(len(accs)):
+        if logs and all(sccs[i].states() != l[0].states() for l in logs):
+            continue
         if not accs[i].formula: 
             make_false(aut, sccs[i], merged_acc)
         else:
@@ -745,7 +779,7 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                     if con not in contained:
                         contained.append(con)
             for l in logs: 
-                if l[0] is sccs[i]:
+                if l[0].states() == sccs[i].states():
                     for m in contained:
                         m.num = l[1][m.num]   
                     break     
@@ -764,9 +798,19 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                     if e.dst in sccs[i].states():
                         for m in add_m:
                             e.acc.set(m)
-        scc_clean_up_edges(aut, merged_acc, sccs[i])
+        #scc_clean_up_edges(aut, merged_acc, sccs[i])
 
 ### MAIN ###
+
+def print_edges(aut, sccs):
+    print("\n")
+    for scc in sccs:
+        for s in scc.states():
+            for e in aut.out(s):
+                m = []
+                for mark in e.acc.sets():
+                    m.append(int(mark))
+                print("From: ", s, " To: ", e.dst, " Marks: ", m)
 
 def main(argv):
     FILENAME = str(sys.argv[1])
@@ -787,15 +831,18 @@ def main(argv):
     if new_acc is None:
         aut.set_acceptance(0, spot.acc_code.f())
         aut.save('_' + FILENAME)
+        print("Accs empty")
         return
 
     aut.set_acceptance(new_acc.max() + 1, spot.acc_code(str(new_acc)))
 
     make_equiv(aut, accs, sccs, logs, new_acc)
+    print_edges(aut, sccs)
     aut = spot.cleanup_acceptance(aut)
-    
-    aut.save('_' + FILENAME)
+
     print(new_acc)
+
+    aut.save('_' + FILENAME)
     
 # randout -A 'random ...
 # autcross pro porovnani    autcross -F 'soubor' neco -F %H bp.py %H
