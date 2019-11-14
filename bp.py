@@ -1,6 +1,7 @@
 import spot
 import enum
 import sys
+import argparse
 import copy
 from scipy.optimize import linear_sum_assignment
 spot.setup()
@@ -718,6 +719,10 @@ def merge_accs(aut, sccs, accs):
     acc_quicksort(nempty_accs, nempty_sccs, 0, len(nempty_accs) - 1)
     
     merged_f = PACC(str(nempty_accs[0]))
+    for i in range(len(accs)):
+        if accs[i] is nempty_accs[0]:
+            accs[i] = merged_f
+            break
     print("NEW ACC TO USE FOR MERGE: ", merged_f)
     shift_fst_acc(aut, merged_f, nempty_sccs[0])
     
@@ -731,7 +736,7 @@ def merge_accs(aut, sccs, accs):
     
     for i in range(1, len(nempty_accs)):
         l = (merge(aut, merged_f, nempty_sccs[0], nempty_accs[i], nempty_sccs[i]))   
-        if all(log[0] != l[0] for log in logs):
+        if all(log[0].states() != l[0].states() for log in logs):
             logs.append(l)
         else:
             for log in logs:
@@ -766,9 +771,12 @@ def make_false(aut, scc, merged_acc):
                     e.acc.set(m)
 
 def make_equiv(aut, accs, sccs, logs, merged_acc):
+    for l in logs:
+        print(l[1])
     print_edges(aut, sccs)
     for i in range(len(accs)):
-        if logs and all(sccs[i].states() != l[0].states() for l in logs):
+        if accs[i] is merged_acc:
+            print("skipping merged")
             continue
         if not accs[i].formula: 
             make_false(aut, sccs[i], merged_acc)
@@ -784,6 +792,7 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                         m.num = l[1][m.num]   
                     break     
             add_m = []
+            print("to make equiv: adding ", add_m)
             for dis in merged_acc:
                 if all(con not in contained for con in dis): #whole disjunct to be made false                    
                     if all(con.type == MarkType.Fin for con in dis):
@@ -797,6 +806,7 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                 for e in aut.out(s):
                     if e.dst in sccs[i].states():
                         for m in add_m:
+                            print("adding ", m, " to ", s, " -> ", e.dst)
                             e.acc.set(m)
         #scc_clean_up_edges(aut, merged_acc, sccs[i])
 
@@ -812,14 +822,18 @@ def print_edges(aut, sccs):
                     m.append(int(mark))
                 print("From: ", s, " To: ", e.dst, " Marks: ", m)
 
-def main(argv):
-    FILENAME = str(sys.argv[1])
-    aut = spot.automaton("/home/tereza/Desktop/bp/" + FILENAME)
+def print_aut(aut, output):
+    if output is None:
+        print(aut.to_str())
+    else:
+        f = open(output, "a")
+        f.write(aut.to_str() + '\n')
+        f.close()
+
+def process_aut(aut):
     spot.cleanup_acceptance_here(aut)
     accs = []
     sccs = []
-
-    #print(aut.get_acceptance().to_dnf())
     for scc in spot.scc_info(aut):
         sccs.append(scc)
         acc = PACC(aut.get_acceptance().to_dnf())
@@ -830,22 +844,43 @@ def main(argv):
     new_acc, logs = merge_accs(aut, sccs, accs)
     if new_acc is None:
         aut.set_acceptance(0, spot.acc_code.f())
-        aut.save('_' + FILENAME)
         print("Accs empty")
         return
-
+        
     aut.set_acceptance(new_acc.max() + 1, spot.acc_code(str(new_acc)))
 
     make_equiv(aut, accs, sccs, logs, new_acc)
     print_edges(aut, sccs)
-    aut = spot.cleanup_acceptance(aut)
-
+    spot.cleanup_acceptance_here(aut)
     print(new_acc)
 
-    aut.save('_' + FILENAME)
+
+def main(argv):
+    FILENAME = str(sys.argv[1])
+    
+    aut = spot.automata(FILENAME)    
+    if FILENAME is None:
+        print("No automata to process.", file=sys.stderr)
+    for a in aut:
+        a2 = spot.automaton(a.to_str()) #remove
+        process_aut(a) 
+        test_aut(a, a2) #remove
+        print_aut(a, '_' + FILENAME) #TODO: change to sys argv 2
     
 # randout -A 'random ...
 # autcross pro porovnani    autcross -F 'soubor' neco -F %H bp.py %H
+
+def test_aut(a1, a2):
+    f = open("summary.txt", "a")
+    if spot.are_equivalent(a1, a2):
+        if a1.get_acceptance().used_sets().max_set() < a2.get_acceptance().used_sets().max_set():
+            f.write("ok, was simplified")
+        else:
+            f.write("ok, NOT simplified, (" + str(a1.get_acceptance().used_sets()) + ", " + str(a2.get_acceptance().used_sets()) + ')')
+    else:
+        f.write("nok")
+    f.write('\n')
+    f.close()
 
 
 """
