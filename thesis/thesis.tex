@@ -1,0 +1,176 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% I, the copyright holder of this work, release this work into the
+%% public domain. This applies worldwide. In some countries this may
+%% not be legally possible; if so: I grant anyone the right to use
+%% this work for any purpose, without any conditions, unless such
+%% conditions are required by law.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[
+  digital, %% This option enables the default options for the
+           %% digital version of a document. Replace with `printed`
+           %% to enable the default options for the printed version
+           %% of a document.
+  twoside, %% This option enables double-sided typesetting. Use at
+           %% least 120 g/m² paper to prevent show-through. Replace
+           %% with `oneside` to use one-sided typesetting; use only
+           %% if you don’t have access to a double-sided printer,
+           %% or if one-sided typesetting is a formal requirement
+           %% at your faculty.
+  table,   %% This option causes the coloring of tables. Replace
+           %% with `notable` to restore plain LaTeX tables.
+  lof,     %% This option prints the List of Figures. Replace with
+           %% `nolof` to hide the List of Figures.
+  lot,     %% This option prints the List of Tables. Replace with
+           %% `nolot` to hide the List of Tables.
+  %% More options are listed in the user guide at
+  %% <http://mirrors.ctan.org/macros/latex/contrib/fithesis/guide/mu/fi.pdf>.
+]{fithesis3}
+%% The following section sets up the locales used in the thesis.
+\usepackage[resetfonts]{cmap} %% We need to load the T2A font encoding
+\usepackage[T1,T2A]{fontenc}  %% to use the Cyrillic fonts with Russian texts.
+\usepackage[
+  main=english, %% By using `czech` or `slovak` as the main locale
+                %% instead of `english`, you can typeset the thesis
+                %% in either Czech or Slovak, respectively.
+]{babel}        %% foreign texts to be typeset as follows:
+%%
+%%   \begin{otherlanguage}{german}  ... \end{otherlanguage}
+%%   \begin{otherlanguage}{russian} ... \end{otherlanguage}
+%%   \begin{otherlanguage}{czech}   ... \end{otherlanguage}
+%%   \begin{otherlanguage}{slovak}  ... \end{otherlanguage}
+%%
+%% For non-Latin scripts, it may be necessary to load additional
+%% fonts:
+\usepackage{paratype}
+%%
+%% The following section sets up the metadata of the thesis.
+\thesissetup{
+    date          = \the\year/\the\month/\the\day,
+    university    = mu,
+    faculty       = fi,
+    type          = bc,
+    author        = {Tereza Šťastná},
+    gender        = f,
+    advisor       = {doc. RNDr. Jan Strejček, Ph.D.},
+    title         = {Simplification\\ of Acceptance Condition\\ of Emerson-Lei Automata},
+    TeXtitle      = {Simplification\\ of Acceptance Condition\\ of Emerson-Lei Automata},
+    keywords      = {keyword1, keyword2, ...},
+    TeXkeywords   = {keyword1, keyword2, \ldots},
+    abstract      = {%
+      This is the abstract of my thesis, which can
+
+      span multiple paragraphs.
+    },
+    thanks        = {%
+      These are the acknowledgements for my thesis, which can
+
+      span multiple paragraphs.
+    },
+    bib           = bibliography.bib,
+}
+\usepackage{makeidx}      %% The `makeidx` package contains
+\makeindex                %% helper commands for index typesetting.
+%% These additional packages are used within the document:
+\usepackage{paralist} %% Compact list environments
+\usepackage{amsmath}  %% Mathematics
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{url}      %% Hyperlinks
+\usepackage{markdown} %% Lightweight markup
+\usepackage{tabularx} %% Tables
+\usepackage{tabu}
+\usepackage{booktabs}
+\usepackage{listings} %% Source code highlighting
+\lstset{
+  basicstyle      = \ttfamily,
+  identifierstyle = \color{black},
+  keywordstyle    = \color{blue},
+  keywordstyle    = {[2]\color{cyan}},
+  keywordstyle    = {[3]\color{olive}},
+  stringstyle     = \color{teal},
+  commentstyle    = \itshape\color{magenta},
+  breaklines      = true,
+}
+\usepackage{floatrow} %% Putting captions above tables
+\floatsetup[table]{capposition=top}
+%% The following code fixes the rendering of BibLaTeX ISO 690
+%% references in old TeX Live (such as the one at Overleaf).
+\thesisload
+\makeatletter
+\def\thesis@biblatexiso@fix@package{iso-numeric.bbx}
+\def\thesis@biblatexiso@fix@end{\relax}
+\newif\ifthesis@biblatexiso@fix@
+\thesis@biblatexiso@fix@false
+\def\thesis@biblatexiso@fix@next#1,{%
+  \def\thesis@biblatexiso@fix@current{#1}%
+  \ifx\thesis@biblatexiso@fix@current\thesis@biblatexiso@fix@package
+    \thesis@biblatexiso@fix@true
+  \fi
+  \ifx\thesis@biblatexiso@fix@current\thesis@biblatexiso@fix@end
+    \expandafter
+    \@gobble
+  \fi
+  \thesis@biblatexiso@fix@next
+}
+\expandafter\expandafter\expandafter\thesis@biblatexiso@fix@next\@filelist,\relax,
+\ifthesis@biblatexiso@fix@
+  \defbibenvironment{bibliography}
+    {\list%
+       {\MethodFormat}%
+       {\setlength{\labelwidth}{\labelnumberwidth}%
+        \setlength{\leftmargin}{\labelwidth}%
+        \setlength{\labelsep}{\biblabelsep}%
+        \addtolength{\leftmargin}{\labelsep}%
+        \setlength{\itemsep}{\bibitemsep}%
+        \setlength{\parsep}{\bibparsep}}%
+        \renewcommand*{\makelabel}[1]{\hss##1}
+        }%
+    {\endlist}%
+  {\item}%
+\fi
+\makeatother
+\begin{document}
+\chapter{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+Our society has become heavily reliant on computer systems in order to function. Unexpected behavior of software often results merely in minor inconvenience, however is some cases it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the properties of software in question behave as intended. 
+
+One such verification method is model-checking. The basic idea of this method is using finite state automata to accurately describe the current state of given program at any time during its execution. The states of the automaton TODO: and the transitions between them describe how specific events shift the state of the program from one to another. To be able to describe programs which should never terminate, we use $\omega-$automata -- finite automata on infinite words. During the process of model-checking a product of two automata is created. It is desirable to have as small product as possible which can be achieved by applying reduction methods to the original automata. 
+
+-?- paper
+
+\section{Structure of the thesis}
+This thesis is structured into several chapter. Chapter two contains the basic definitions of constructs used throughout the thesis. %TODO: 
+
+\chapter{Basic definitions}
+\section{Transition-based Emerson-Lei Automaton (TELA)} %je skarede mit to v zavorce?
+A transition-based Emerson-Lei automaton, shortly TELA, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
+\begin{itemize}
+  \item $\Sigma$ is an alphabet,
+  \item $Q$ is a finite set of states,
+  \item $q_0 \in Q$ is the initial state,
+  \item $\delta \subseteq Q \times \Sigma \times Q$ is a transition relation,
+  \item $Acc$ is a Boolean formula over terms of the form $Fin(T)$ or $Inf(T)$ for any subset $T \subseteq \delta$. %positive Boolean function 
+\end{itemize}
+
+For a transition $t = (t^s, t^l, t^d) \in \delta$, $t^s$ denotes its source, $t^l$ its label and $t^d$ its destination.
+
+\cite{bloemen2017}
+
+\chapter{Simplification of TGBA} %zkracene nebo rozepsat?
+bla \cite{spin2013}
+\chapter{Simplification of TELA}
+
+\chapter{Implementation}
+
+\chapter{Experimental Evaluation}
+
+\chapter{Conclusion}
+
+
+
+  \printbibliography[heading=bibintoc] %% Print the bibliography.
+
+
+\end{document}
