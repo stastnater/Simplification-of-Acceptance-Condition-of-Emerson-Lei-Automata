@@ -1,13 +1,19 @@
 @inproceedings{bloemen2017,
-  title={Explicit state model checking with generalized B{\"u}chi and Rabin automata},
-  author={Bloemen, Vincent and Duret-Lutz, Alexandre and Pol, Jaco van de},
-  booktitle={Proceedings of the 24th ACM SIGSOFT International SPIN Symposium on Model Checking of Software},
-  pages={50--59},
-  year={2017},
-  organization={ACM}
+title = "Explicit State Model Checking with Generalized B{\"u}chi and Rabin Automata",
+abstract = "In the automata theoretic approach to explicit state LTL model checking, the synchronized product of the model and an automaton that represents the negated formula is checked for emptiness. In practice, a (transition-based generalized) B{\"u}chi automaton (TGBA) is used for this procedure.This paper investigates whether using a more general form of acceptance, namely transition-based generalized Rabin automata (TGRAs), improves the model checking procedure. TGRAs can have signi cantly fewer states than TGBAs, however the corresponding emptiness checking procedure is more involved. With recent advances in probabilistic model checking and LTL to TGRA translators, it is only natural to ask whether checking a TGRA directly is more advantageous in practice.We designed a multi-core TGRA checking algorithm and performed experiments on a subset of the models and formulas from the 2015 Model Checking Contest. We observed that our algorithm can be used to replace a TGBA checking algorithm without losing performance. In general, we found little to no improvement by checking TGRAs directly.",
+keywords = "Model checking, Explicit state, LTL, omega-automata, on-the-fly, generalised B{\"u}chi Automaton, generalised Rabin Automaton, parallel algorithms, multi-core",
+author = "Vincent Bloemen and Alexandre Duret-Lutz and {van de Pol}, Jaco",
+year = "2017",
+month = "7",
+doi = "10.1145/3092282.3092288",
+language = "English",
+isbn = "978-1-4503-5077-8",
+pages = "50--59",
+booktitle = "SPIN 2017",
+publisher = "Association for Computing Machinery (ACM)",
+address = "United States",
 }
 
-%Babiak T., Badie T., Duret-Lutz A., Křetínský M., Strejček J. (2013) Compositional Approach to Suspension and Other Improvements to LTL Translation. In: Bartocci E., Ramakrishnan C.R. (eds) Model Checking Software. SPIN 2013. Lecture Notes in Computer Science, vol 7976. Springer, Berlin, Heidelberg
 @InProceedings{spin2013,
 author="Babiak, Tom{\'a}{\v{s}}
 and Badie, Thomas
@@ -23,5 +29,6 @@ publisher="Springer Berlin Heidelberg",
 address="Berlin, Heidelberg",
 pages="81--98",
 abstract="Recently, there was defined a fragment of LTL (containing fairness properties among other interesting formulae) whose validity over a given infinite word depends only on an arbitrary suffix of the word. Building upon an existing translation from LTL to B{\"u}chi automata, we introduce a compositional approach where subformulae of this fragment are translated separately from the rest of an input formula and the produced automata are composed in a way that the subformulae are checked only in relevant accepting strongly connected components of the final automaton. Further, we suggest improvements over some procedures commonly applied to generalized B{\"u}chi automata, namely over generalized acceptance simplification and over degeneralization. Finally we show how existing simulation-based reductions can be implemented in a signature-based framework in a way that improves the determinism of the automaton.",
-isbn="978-3-642-39176-7"
+isbn="978-3-642-39176-7",
+doi={10.1007/978-3-642-39176-7_6}
 }

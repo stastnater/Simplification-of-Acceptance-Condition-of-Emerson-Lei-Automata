@@ -134,43 +134,82 @@
 \chapter{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
-Our society has become heavily reliant on computer systems in order to function. Unexpected behavior of software often results merely in minor inconvenience, however is some cases it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the properties of software in question behave as intended. 
+Our society has become heavily reliant on computer systems in order to function. Unexpected behavior of software often results merely in minor inconvenience. However is some cases, it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the properties of software in question behave as intended. 
 
-One such verification method is model-checking. The basic idea of this method is using finite state automata to accurately describe the current state of given program at any time during its execution. The states of the automaton TODO: and the transitions between them describe how specific events shift the state of the program from one to another. To be able to describe programs which should never terminate, we use $\omega-$automata -- finite automata on infinite words. During the process of model-checking a product of two automata is created. It is desirable to have as small product as possible which can be achieved by applying reduction methods to the original automata. 
+One such verification method is model-checking. The basic idea of this method is using finite state automata to accurately describe the current state of the given program at any time during its execution. The states of the automaton represent the current state of the program, and the transitions between them describe how specific events shift the state of the program from one to another. To be able to describe programs that should never terminate, we use $\omega$-automata -- finite automata on infinite words. During the process of model-checking, a product of two automata is created. It is desirable for the product to be as small as possible, which can be achieved by applying reduction methods to the original automata. 
 
--?- paper
+For some reduction techniques, such as simulation-based reduction and degeneralization, it is beneficial to minimize the number of acceptance sets in the automaton. In \cite{spin2013}, the authors introduce the SCC-based simplifications of acceptance conditions. It is a method that proposes how to reduce the number of acceptance sets in Transition-based Büchi automata (TGBA). For each strongly connected component, it evaluates the relation between acceptance sets and removes the useless ones. 
+
+The goal of this thesis is to propose and implement an analogous simplification method for transition-based Emerson-Lei automata (TELA).  It identifies useless acceptance sets in SCCs and removes them. 
 
 \section{Structure of the thesis}
 This thesis is structured into several chapter. Chapter two contains the basic definitions of constructs used throughout the thesis. %TODO: 
 
 \chapter{Basic definitions}
-\section{Transition-based Emerson-Lei Automaton (TELA)} %je skarede mit to v zavorce?
-A transition-based Emerson-Lei automaton, shortly TELA, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
+\section{Transition-based Emerson-Lei Automaton (TELA)} 
+A transition-based Emerson-Lei automaton, as defined in \cite{bloemen2017}, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
 \begin{itemize}
   \item $\Sigma$ is an alphabet,
   \item $Q$ is a finite set of states,
   \item $q_0 \in Q$ is the initial state,
   \item $\delta \subseteq Q \times \Sigma \times Q$ is a transition relation,
-  \item $Acc$ is a Boolean formula over terms of the form $Fin(T)$ or $Inf(T)$ for any subset $T \subseteq \delta$. %positive Boolean function 
+  \item $Acc$ is a Boolean formula over terms of the form Fin$(T)$ or Inf$(T)$ for any subset $T \subseteq \delta$. %positive Boolean function 
 \end{itemize}
 
 For a transition $t = (t^s, t^l, t^d) \in \delta$, $t^s$ denotes its source, $t^l$ its label and $t^d$ its destination.
 
-\cite{bloemen2017}
+$\rho \in \delta^\omega$ where $\rho(0)^s = q_0 \wedge \forall i \geq 0 : \rho(i)^d = \rho(i + 1)^s$ is a run of $\mathcal{A}$ over $\Sigma^\omega$.
 
-\chapter{Simplification of TGBA} %zkracene nebo rozepsat?
-bla \cite{spin2013}
-\chapter{Simplification of TELA}
+The acceptance of a run $\rho$ is defined by evaluating $Acc$ over $\rho$ where
+\begin{itemize}
+  \item Fin$(T)$ is true if all the transitions in $T$ occur finitely often, 
+  \item Inf$(T)$ is true if some transition in $T$ occurs infinitely often.
+\end{itemize}
+
+\section{Transition-based Generalized Büchi Automaton (TGBA)}
+Transition-based Generalized Büchi Automaton, as defined in \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where $Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n)$ for some $n$. A run of TGBA over an infinite word is accepting if some transition in $T(i)$ occurs infinitely often for all $i \in \{1, 2, \dots, n\}$. 
+
+\chapter{SCC-based simplification of acceptance conditions of TGBA} 
+Let $\mathcal{A'}$ be a TGBA with $n$ acceptance sets: 
+\begin{equation*}
+  Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n).
+\end{equation*}
+Let $A_\delta = A_1, \dots, A_m$ be the set of all transitions induced by the accepting SCCs of $\mathcal{A'}$. 
+Any accepting run of $\mathcal{A'}$ will be contained in some accepting SCC. Therefore any transitions that are not in $A_\delta$ can be removed without changing the language accepted by $A'$. We can modify the acceptance sets of $\mathcal{A'}$ as follows: 
+\begin{equation*}
+  Acc_1 = \{ \text{Inf}(T_1) \cap A_\delta \wedge \text{Inf}(T_2) \cap A_\delta \wedge \dots \wedge \text{Inf}(T_n) \cap A_\delta \}.
+\end{equation*}
+If $Acc_1$ contains such sets that $T_i \subseteq T_j$ and $i \neq j$, we can remove $T_j$, because any run that visits $T_i$ infinitely often also visits $T_j$ infinitely often. Therefore, removing $T_j$ will not change the language.
+For all SCCs denoted $\{1, 2, \dots, m\}$ we can define a set of indices of useless acceptance sets
+\begin{equation*}
+  U_k = \{ j \in \{1, 2, \dots, n\} \mid \exists i \in  \{1, 2, \dots, n\}, (T_i \cap A_k \subsetneq T_j) \vee (T_i = T_j \wedge j > i) \} %TODO: undo zmatek
+\end{equation*}
+where $k \in \{1, 2, \dots, m\}$. In the definition we can see that if the two sets $T_i$ and $T_j$ are equal only one of them belongs to $Acc_U$. 
+
+
+
+
+
+\chapter{SCC-based simplification of acceptance conditions of TELA}
+%TODO: mention dnf
+\section{Simplification of SCCs}
+\subsection{Inclusion of Fin-type sets in conjunction}
+
+\section{Merging acceptance conditions of SCCs}
+
+\section{Restoring equivalence with original automaton}
+
 
 \chapter{Implementation}
 
+
 \chapter{Experimental Evaluation}
+
 
 \chapter{Conclusion}
 
 
 
-  \printbibliography[heading=bibintoc] %% Print the bibliography.
-
+\printbibliography[heading=bibintoc]
 
 \end{document}

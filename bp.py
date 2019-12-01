@@ -30,6 +30,7 @@ class ACCMark:
 class PACC: 
     def __init__(self, acc):
         self.formula = parse_acc(acc)
+        self.sat = None
 
     def __str__(self):
         f = []
@@ -56,6 +57,9 @@ class PACC:
             for con in dis:
                 l += 1
         return l
+
+    def set_sat(self, val):
+        self.sat = val
 
     def count_unique_m(self):
         inf = []
@@ -302,13 +306,7 @@ def simpl_inf_con(aut, acc, scc, subsets):
                 print("inf con removing: ", sub[0], " IN SCC: ", scc.states())
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)                            
-            """ #TODO: but why
-            else:
-                for i in super_i:
-                    if i in sub_i:
-                        acc.rem_from_dis(i, sub[0])
-                        acc.clean_up(aut, scc)
-            """
+
 
 def simpl_fin_con(aut, acc, scc):
     #TODO: count dis with fin, if discount < unique fin -> merge all fins in each dis
@@ -457,29 +455,6 @@ def simpl_false(aut, acc, subsets, compl_sets, scc):
         acc.rem_dis(i)
 
 
-""" 
-    current_marks = set(scc_current_marks(aut, scc))
-    for s in scc.states():
-        for e in aut.out(s):
-            if e.dst in scc.states():
-                current_marks = current_marks.intersection(set(e.acc.sets()))
-    for m in current_marks:
-        if acc.get_mtype(m) == MarkType.Fin: 
-            for i in range(len(acc.formula)):
-                if any(con.num == m for con in acc[i]):
-                    acc.rem_dis(i)
-    scc_clean_up_edges(aut, acc, scc)
-"""
-"""
-    for co in compl_sets:
-        if acc.get_mtype(co[0]) == MarkType.Fin and acc.get_mtype(co[1]) == MarkType.Fin:
-            co1_i = acc.find_m_dis(co[0])
-            co2_i = acc.find_m_dis(co[1])
-            for i in co1_i:
-                if i in co2_i:
-                    acc.rem_dis(i)
-"""
-
 ### SIMPLIFY ###
 
 def simplify(aut, acc, scc):
@@ -493,11 +468,12 @@ def simplify(aut, acc, scc):
     compl_sets = scc_compl_sets(aut, scc)
 
     # simplify mark subsets
+    print("FUUUUUUUUUUU ", subsets)
     simpl_inf_con(aut, acc, scc, subsets)
     subsets = scc_subsets(aut, scc)
     simpl_fin_con_subsets(aut, acc, scc, subsets)
     subsets = scc_subsets(aut, scc)
-    #simpl_inf_dis(aut, acc, scc, subsets)
+    #simpl_inf_dis(aut, acc, scc, subsets) #TODO:
     #subsets = scc_subsets(aut, scc)
     simpl_fin_dis(aut, acc, scc, subsets)
     
@@ -611,7 +587,7 @@ def add_dupl_marks(aut, scc, origin_m, new_m):
                 if not e.acc.has(new_m):
                     e.acc.set(new_m)
 
-
+"""
 def get_dependencies(acc):
     depend = []
     int_f = acc.int_format()
@@ -643,7 +619,7 @@ def resolve_dependencies(aut, acc1, scc1, acc2, scc2):
             s_acc2.append([])
     acc2_d = get_dependencies(PACC(str(s_acc2)))
     log = (scc2, {})
-    for d1 in acc1_d: #TODO: sort acc1_d by length for better results
+    for d1 in acc1_d:
         for d2 in acc2_d:
             # dependencies needn't be removed
             if d1[0].type == d2[0].type and all(d1[i] in d2 for i in range(1, len(d1))):
@@ -666,7 +642,44 @@ def resolve_dependencies(aut, acc1, scc1, acc2, scc2):
                         add_dupl_marks(aut, scc1, con.num, new_m)
                         con.num = new_m
     return log
-                                                         
+"""                                                     
+
+def resolve_depend(aut, acc1, scc1, acc2, scc2):
+    m = make_matrix(acc1, acc2)
+    row_i, col_i = linear_sum_assignment(m)
+    log = {} #used to find dependencies
+    l = {} #return log
+    for i in range(len(row_i)):
+        dis1 = acc1[col_i[i]]
+        used = [False] * len(dis1)
+        dis2 = []
+        if row_i[i] < len(acc2):
+            dis2 = acc2[row_i[i]]
+        for con in dis2:
+            index = place_con(dis1, con, used)
+            if index is not None:
+                if con.num in log:
+                    if log[con.num] == dis1[index].num:
+                        used[index] = True
+                    else:                       
+                        used[index] = True
+                        l[con.num] = acc1.max() + 1
+                        log[con.num] = acc1.max() + 1
+                        add_dupl_marks(aut, scc1, dis1[index].num, acc1.max() + 1)
+                        dis1[index].num = acc1.max() + 1                                                                      
+                else:
+                    log[con.num] = dis1[index].num                
+                    used[index] = True
+        if not dis2:
+            for con in dis1:                
+                if con.num in log.values():
+                    #l[con.num] = acc1.max() + 1                    
+                    add_dupl_marks(aut, scc1, con.num, acc1.max() + 1)
+                    print(con.num, acc1.max() +1)
+                    print_edges(aut, spot.scc_info(aut)) ####
+                    con.num = acc1.max() + 1
+    return (scc1, l)
+
 
 ### MERGE ###
 
@@ -723,15 +736,15 @@ def merge_accs(aut, sccs, accs):
         if accs[i] is nempty_accs[0]:
             accs[i] = merged_f
             break
-    print("NEW ACC TO USE FOR MERGE: ", merged_f)
+    print("NEW ACC TO USE FOR MERGE: ", merged_f, sccs[0].states())
     shift_fst_acc(aut, merged_f, nempty_sccs[0])
     
     logs = []
     for dis1 in merged_f.int_format():
         for dis2 in merged_f.int_format():
-            if dis1 != dis2 and list(set(dis1).intersection(set(dis2))):
+            if dis1 is not dis2 and list(set(dis1).intersection(set(dis2))):
                 for i in range(1, len(nempty_accs)):
-                    logs.append(resolve_dependencies(aut, merged_f, nempty_sccs[0], nempty_accs[i], nempty_sccs[i]))
+                    logs.append(resolve_depend(aut, merged_f, nempty_sccs[0], nempty_accs[i], nempty_sccs[i]))
                 break
     
     for i in range(1, len(nempty_accs)):
@@ -785,6 +798,7 @@ def make_true(aut, scc, merged_acc):
 
     if not add_m:
         return
+    print("MAKE TRUE: ", scc.states(), " ADDING: ", add_m)
     for s in scc.states():
         for e in aut.out(s):
             if e.dst in scc.states():
@@ -799,8 +813,10 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
         if accs[i] is merged_acc:
             print("skipping merged")
             continue
-        if not accs[i].formula:
-            make_false(aut, sccs[i], merged_acc)          
+        if accs[i].sat is True: 
+            make_true(aut, sccs[i], merged_acc)
+        elif (accs[i].sat is False) or (not accs[i].formula):
+            make_false(aut, sccs[i], merged_acc)            
         else:
             contained = []
             for dis in accs[i].formula:
@@ -813,7 +829,6 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                         m.num = l[1][m.num]   
                     break     
             add_m = []
-            print("to make equiv: adding ", add_m)
             for dis in merged_acc:
                 if all(con not in contained for con in dis): #whole disjunct to be made false                    
                     if all(con.type == MarkType.Fin for con in dis):
@@ -823,6 +838,7 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                     for con in dis:
                         if con not in contained and con.type == MarkType.Inf and con.num not in add_m:
                             add_m.append(con.num)
+            print("to make equiv: adding ", add_m)
             for s in sccs[i].states():
                 for e in aut.out(s):
                     if e.dst in sccs[i].states():
@@ -832,36 +848,12 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
         #scc_clean_up_edges(aut, merged_acc, sccs[i])
 
 ### MAIN ###
-def shift_acc_low(aut, acc):
-    d = {}
-    next_m = 0
-    for dis in acc.formula:
-        for con in dis:
-            if con.num in d:
-                con.num = d.get(con.num)
-            else:
-                d[con.num] = next_m
-                con.num = next_m
-                next_m += 1
-
-    for scc in spot.scc_info(aut):
-        for s in scc.states():
-            for e in aut.out(s):
-                add = []
-                for m in e.acc.sets():
-                    add.append(d.get(int(m)))
-                    e.acc.clear(m)
-                for new_m in add:
-                    e.acc.set(new_m)
-
-
 def eval_set(aut, mark, scc, m_all_e):
     if mark.num in m_all_e:
         return mark.type == MarkType.Inf
-    elif mark.num in scc_current_marks(aut, scc):
-        return None
-    else:
+    if mark.num not in scc_current_marks(aut, scc):    
         return mark.type == MarkType.Fin
+    return None
         
 def try_eval(aut, acc, scc):
     scc_edge_c = 0
@@ -872,10 +864,7 @@ def try_eval(aut, acc, scc):
                 scc_edge_c += 1
                 for m in list(m_all_edges):
                     if not e.acc.has(m):
-                        m_all_edges.remove(m)
-                    
-    if scc_edge_c == 0:
-        return False
+                        m_all_edges.remove(m)                    
 
     eval_f = False
     for dis in acc.formula:
@@ -884,11 +873,13 @@ def try_eval(aut, acc, scc):
             val = eval_set(aut, con, scc, m_all_edges)
             if eval_dis is False or val is False:
                 eval_dis = False
-            elif eval_dis is None or val is None:
+            elif (eval_dis is None or eval_dis is True) and val is None:
                 eval_dis = None
-        if eval_f is True or eval_dis is True:
-            eval_f = True
-        elif eval_f is None or eval_dis is None: 
+        if eval_dis is True:
+            acc.sat = True
+            acc.formula = []
+            return
+        elif (eval_f is None or eval_f is False) and eval_dis is None: 
             eval_f = None
     acc.set_sat(eval_f)
     if acc.sat is not None:
@@ -924,22 +915,42 @@ def process_aut(aut):
         sccs.append(scc)
         acc = PACC(aut.get_acceptance().to_dnf())
 
-        simplify(aut, acc, scc)
+        try_eval(aut, acc, scc)
+        if acc.sat is None:
+            simplify(aut, acc, scc)
         accs.append(acc)
     
     new_acc, logs = merge_accs(aut, sccs, accs)
     if new_acc is None:
-        aut.set_acceptance(0, spot.acc_code.f())
-        print("Accs empty")
-        return
-        
+        if all(acc.sat is True for acc in accs):
+            for scc in sccs:
+                scc_clean_up_edges(aut, PACC(""), scc)
+            aut.set_acceptance(0, spot.acc_code.t())
+            return
+        elif all(acc.sat is False for acc in accs):            
+            for scc in sccs:
+                scc_clean_up_edges(aut, PACC(""), scc)
+            aut.set_acceptance(0, spot.acc_code.f())
+            return
+        else:
+            new_acc = PACC("Inf(0)")
+            for i in range(len(accs)):
+                if accs[i].sat is True:
+                    make_true(aut, sccs[i], new_acc)
+                else:
+                    make_false(aut, sccs[i], new_acc)
+            aut.set_acceptance(1, spot.acc_code(str(new_acc)))
+            return
+    aut.set_acceptance(new_acc.max() + 1, spot.acc_code(str(new_acc))) 
+
+    for i in range(len(accs)):
+        print(sccs[i].states(), accs[i].sat)
+    
     make_equiv(aut, accs, sccs, logs, new_acc)
-
-    shift_acc_low(aut, new_acc)
-    aut.set_acceptance(new_acc.max() + 1, spot.acc_code(str(new_acc)))
-
     print_edges(aut, sccs)
+    print(aut.prop_state_acc())
     spot.cleanup_acceptance_here(aut)
+    print(aut.prop_state_acc())
     print(new_acc)
 
 
@@ -951,7 +962,10 @@ def main(argv):
         print("No automata to process.", file=sys.stderr)
     for a in aut:
         a2 = spot.automaton(a.to_str()) #remove
-        process_aut(a) 
+        try: 
+            process_aut(a) 
+        except RuntimeError:
+            a = a2
         test_aut(a, a2) #remove
         print_aut(a, '_' + FILENAME, "w") #TODO: change to sys argv 2
     
@@ -967,8 +981,8 @@ def test_aut(a1, a2):
             f.write("ok, NOT simplified, (" + str(a1.get_acceptance().used_sets()) + ", " + str(a2.get_acceptance().used_sets()) + ')')
     else:
         f.write("nok")
-        print_aut(a1, "err_aut.aut", "a")
-        print_aut(a2, "err_aut.aut", "a")
+        print_aut(a1, "err_aut.hoa", "a")
+        print_aut(a2, "err_aut.hoa", "a")
     f.write('\n')
     f.close()
 
