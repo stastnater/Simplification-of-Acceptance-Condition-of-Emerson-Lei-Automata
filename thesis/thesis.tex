@@ -72,16 +72,19 @@
 \usepackage{makeidx}      %% The `makeidx` package contains
 \makeindex                %% helper commands for index typesetting.
 %% These additional packages are used within the document:
-\usepackage{paralist} %% Compact list environments
-\usepackage{amsmath}  %% Mathematics
+\usepackage{paralist} 
+\usepackage{amsmath}  
 \usepackage{amsthm}
+\usepackage{amssymb}
 \usepackage{amsfonts}
-\usepackage{url}      %% Hyperlinks
-\usepackage{markdown} %% Lightweight markup
-\usepackage{tabularx} %% Tables
+\usepackage{url}      
+\usepackage{markdown} 
+\usepackage{tabularx} 
 \usepackage{tabu}
 \usepackage{booktabs}
-\usepackage{listings} %% Source code highlighting
+\usepackage{listings} 
+\usepackage{tikz}
+\usetikzlibrary{automata,nicearrows,bending}
 \lstset{
   basicstyle      = \ttfamily,
   identifierstyle = \color{black},
@@ -140,12 +143,13 @@ One such verification method is model-checking. The basic idea of this method is
 
 For some reduction techniques, such as simulation-based reduction and degeneralization, it is beneficial to minimize the number of acceptance sets in the automaton. In \cite{spin2013}, the authors introduce the SCC-based simplifications of acceptance conditions. It is a method that proposes how to reduce the number of acceptance sets in Transition-based Büchi automata (TGBA). For each strongly connected component, it evaluates the relation between acceptance sets and removes the useless ones. 
 
-The goal of this thesis is to propose and implement an analogous simplification method for transition-based Emerson-Lei automata (TELA).  It identifies useless acceptance sets in SCCs and removes them. 
+The goal of this thesis is to propose and implement an analogous simplification method for transition-based Emerson-Lei automata (TELA).  This method includes techniques to identify useless acceptance sets and modifications to the acceptance condition formula. During this process, we obtain separate acceptance condition formulas for each accepting SCC. Therefore, the presented method also describes how to merge these formulas into one. Finally, it describes the necessary modifications which ensure that the simplified automaton and the original automaton are equivalent.
 
-\section{Structure of the thesis}
-This thesis is structured into several chapter. Chapter two contains the basic definitions of constructs used throughout the thesis. %TODO: 
+This thesis is structured into several chapters. Chapter two contains the basic definitions used throughout the thesis. Chapter three summarizes the ideas of the SCC-based simplification method from \cite{spin2013}.  Chapter four presents the SCC-based simplification of TELA. Chapter five discusses the implementation specifics of this method. Chapter six presents the experimental evaluation of the implemented tool. Chapter seven contains the conclusion.
 
 \chapter{Basic definitions}
+%TODO: popis obsahu kapitoly
+
 \section{Transition-based Emerson-Lei Automaton (TELA)} 
 A transition-based Emerson-Lei automaton, as defined in \cite{bloemen2017}, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
 \begin{itemize}
@@ -153,7 +157,7 @@ A transition-based Emerson-Lei automaton, as defined in \cite{bloemen2017}, is a
   \item $Q$ is a finite set of states,
   \item $q_0 \in Q$ is the initial state,
   \item $\delta \subseteq Q \times \Sigma \times Q$ is a transition relation,
-  \item $Acc$ is a Boolean formula over terms of the form Fin$(T)$ or Inf$(T)$ for any subset $T \subseteq \delta$. %positive Boolean function 
+  \item $Acc$ is the acceptance condition formula, defined as a positive Boolean function over terms of the form Fin$(T)$ or Inf$(T)$ for any subset $T \subseteq \delta$. %positive Boolean function 
 \end{itemize}
 
 For a transition $t = (t^s, t^l, t^d) \in \delta$, $t^s$ denotes its source, $t^l$ its label and $t^d$ its destination.
@@ -167,7 +171,11 @@ The acceptance of a run $\rho$ is defined by evaluating $Acc$ over $\rho$ where
 \end{itemize}
 
 \section{Transition-based Generalized Büchi Automaton (TGBA)}
-Transition-based Generalized Büchi Automaton, as defined in \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where $Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n)$ for some $n$. A run of TGBA over an infinite word is accepting if some transition in $T(i)$ occurs infinitely often for all $i \in \{1, 2, \dots, n\}$. 
+Transition-based Generalized Büchi Automaton, as defined in \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where 
+\begin{equation*}
+  Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n)
+\end{equation*} 
+for some $n$. A run of TGBA over an infinite word is accepting if some transition in $T(i)$ occurs infinitely often for all $i \in \{1, 2, \dots, n\}$. 
 
 \chapter{SCC-based simplification of acceptance conditions of TGBA} 
 Let $\mathcal{A'}$ be a TGBA with $n$ acceptance sets: 
@@ -180,20 +188,72 @@ Any accepting run of $\mathcal{A'}$ will be contained in some accepting SCC. The
   Acc_1 = \{ \text{Inf}(T_1) \cap A_\delta \wedge \text{Inf}(T_2) \cap A_\delta \wedge \dots \wedge \text{Inf}(T_n) \cap A_\delta \}.
 \end{equation*}
 If $Acc_1$ contains such sets that $T_i \subseteq T_j$ and $i \neq j$, we can remove $T_j$, because any run that visits $T_i$ infinitely often also visits $T_j$ infinitely often. Therefore, removing $T_j$ will not change the language.
-For all SCCs denoted $\{1, 2, \dots, m\}$ we can define a set of indices of useless acceptance sets
+For each accepting SCC we can define a set of indices of useless acceptance sets 
 \begin{equation*}
-  U_k = \{ j \in \{1, 2, \dots, n\} \mid \exists i \in  \{1, 2, \dots, n\}, (T_i \cap A_k \subsetneq T_j) \vee (T_i = T_j \wedge j > i) \} %TODO: undo zmatek
+  \begin{aligned}
+    U_k = &\{ j \in \{1, 2, \dots, n\} \mid \exists i \in \{1, 2, \dots, n\}, \\
+    &(T_i \cap A_k \subsetneq T_j \cap A_k) \vee (T_i \cap A_k = T_j \cap A_k \wedge j > i)\}.
+  \end{aligned}
 \end{equation*}
-where $k \in \{1, 2, \dots, m\}$. In the definition we can see that if the two sets $T_i$ and $T_j$ are equal only one of them belongs to $Acc_U$. 
+In the definition we can see that if the two sets $T_i$ and $T_j$ are equal only one of their indices belongs to $U_k$. The set of needed acceptance sets for any accepting SCC is $N_k = \{1, 2, \dots, n\} \smallsetminus U_k$. 
 
+This may result in each SCC having a different number of acceptance sets. 
 
+%TODO: dodelat priklad
 
+\begin{center}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \tikzstyle{every state}=[very thick]
+    \node[state, initial above]   (0) at (0,0) {0};
+    \node[state]            (1) at (-3, 0) {1};
+    \node[state]            (2) at (3, 0) {2};
 
+    \path[->, very thick]
+            (0) edge[bend right]  node [above] {\texttt{tt}} (1) 
+                edge[bend left]   node [above] {\texttt{tt}} (2) 
+            (1) edge[loop above]  node {} (1) 
+                edge[loop left]   node {} (1) 
+                edge[loop right]  node {} (1) 
+                edge[loop below]  node {} (1) 
+            (2) edge[loop above]  node {} (2) 
+                edge[loop below]  node {} (2);
+    
+  \end{tikzpicture}
+\end{center}
 
 \chapter{SCC-based simplification of acceptance conditions of TELA}
-%TODO: mention dnf
+In the first section of this chapter, we propose several techniques that may remove useless acceptance sets in the sub-automaton induced by an accepting SCC of the original automaton. 
+
+The second section presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton.
+
 \section{Simplification of SCCs}
-\subsection{Inclusion of Fin-type sets in conjunction}
+Unlike TGBA, TELA have complex acceptance condition formulae. Therefore, to identify which acceptance sets are useless, we need to consider not only the relation between the transitions in these sets but also the specifics of their occurrence in the acceptance condition formula. For example, consider acceptance sets $T_1, T_2, T_3$ and $T_1 \subseteq T_2$ and $Acc_a = \text{Inf}(T_1) \wedge \text{Inf}(T_2)$. In this case, we can apply the simplifications from chapter two a remove $T_2$, because the form of $Acc_a$ is identical with the form of TGBA formula. However, in $Acc_b = \text{Inf}(T_1) \vee (\text{Inf}(T_2) \wedge \text{Fin}(T_3))$ simply removing $T_2$ could change the language. This example demonstrates that for SCC-based TELA simplifications, it is necessary to carefully define the requirements about the form of the acceptance condition formula.
+
+Let the input automaton $\mathcal{A}$ have at least one acceptance set, and the acceptance condition formula of $\mathcal{A}$ be in disjunctive normal form (DNF). 
+
+Let the $d_{Acc} = \{d_1, d_2, \dots, d_m\}$ be a set of all disjuncts of $Acc$.
+
+
+\subsection{Inclusion-based simplifications}
+\subsubsection{Sets in conjunctive relation}
+Let $T_1 \subseteq T_2$ be acceptance sets that appear in the acceptance condition formula as Inf$(T_1)$ and Inf$(T_2)$. We can modify the simplifications from chapter two to make them viable for TELA by adding a prerequisite that demands a specific form of the acceptance formula. The requirement is that for any disjunct in the formula, either both sets are present, or neither is present. The other prerequisite is, as in chapter two, that $T_1$ is included in $T_2$. If the prerequisites are met, we may remove $T_2$ from the formula. 
+
+More formally, if 
+\begin{itemize}
+  \item $i, j \in \{1, 2, \dots, n\}$
+  \item $\wedge \ (T_i \subsetneq T_j \vee (T_i = T_j \wedge j > i))$
+  \item $\wedge \ \text{Inf}(T_i), \text{Inf}(T_j) \in Acc$
+  \item $\wedge \ Acc = \{ d_k \mid k \in \{1, 2, \dots, m\} \wedge (T_i, T_j \in d_k \vee T_i, T_j \notin d_k)\}$,
+\end{itemize}
+then we can remove $T_j$ from $Acc$: 
+\begin{equation*}
+  Acc = \{d_1 \smallsetminus T_j, d_2 \smallsetminus T_j, \dots, d_m \smallsetminus T_j\}.
+\end{equation*} 
+
+
+\subsection{Simplifications of complementary acceptance sets}
+
+\subsection{Simplification of unit disjuncts}
 
 \section{Merging acceptance conditions of SCCs}
 
