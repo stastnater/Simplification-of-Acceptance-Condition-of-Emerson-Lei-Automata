@@ -134,6 +134,24 @@
 \fi
 \makeatother
 \begin{document}
+% Tikz styles 
+\tikzset{
+  collacc0/.style={fill=blue!50!cyan},
+  collacc1/.style={fill=magenta},
+  collacc2/.style={fill=orange!90!black},
+  collacc3/.style={fill=green!70!black},
+  collacc4/.style={fill=blue!50!black},
+}
+
+\tikzstyle{accset}=[
+  circle,inner sep=.9pt,draw=white,
+  collacc0, text=white,
+  thin,
+  anchor=center,
+  font=\bfseries\sffamily\scriptsize,
+  minimum size={6pt},
+]
+
 \chapter{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
@@ -145,7 +163,7 @@ For some reduction techniques, such as simulation-based reduction and degenerali
 
 The goal of this thesis is to propose and implement an analogous simplification method for transition-based Emerson-Lei automata (TELA).  This method includes techniques to identify useless acceptance sets and modifications to the acceptance condition formula. During this process, we obtain separate acceptance condition formulas for each accepting SCC. Therefore, the presented method also describes how to merge these formulas into one. Finally, it describes the necessary modifications which ensure that the simplified automaton and the original automaton are equivalent.
 
-This thesis is structured into several chapters. Chapter two contains the basic definitions used throughout the thesis. Chapter three summarizes the ideas of the SCC-based simplification method from \cite{spin2013}.  Chapter four presents the SCC-based simplification of TELA. Chapter five discusses the implementation specifics of this method. Chapter six presents the experimental evaluation of the implemented tool. Chapter seven contains the conclusion.
+This thesis is structured into several chapters. Chapter two contains the basic definitions used throughout the thesis. Chapter three summarizes the ideas of the SCC-based simplification method from \cite{spin2013}.  Chapter four presents the SCC-based simplification of TELA. Chapter five discusses the implementation specifics of this method. Chapter six presents the results of experimental evaluation of the implemented tool. Chapter seven contains the conclusion.
 
 \chapter{Basic definitions}
 %TODO: popis obsahu kapitoly
@@ -169,6 +187,12 @@ The acceptance of a run $\rho$ is defined by evaluating $Acc$ over $\rho$ where
   \item Fin$(T)$ is true if all the transitions in $T$ occur finitely often, 
   \item Inf$(T)$ is true if some transition in $T$ occurs infinitely often.
 \end{itemize}
+
+In figures, an acceptance set is represented by acceptance marks (for example 
+\begin{tikzpicture}
+  \node[accset, collacc0] {};
+\end{tikzpicture}
+) placed on the transitions which belong to that set.
 
 \section{Transition-based Generalized Büchi Automaton (TGBA)}
 Transition-based Generalized Büchi Automaton, as defined in \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where 
@@ -211,12 +235,12 @@ This may result in each SCC having a different number of acceptance sets.
     \path[->, very thick]
             (0) edge[bend right]  node [above] {\texttt{tt}} (1) 
                 edge[bend left]   node [above] {\texttt{tt}} (2) 
-            (1) edge[loop above]  node {} (1) 
-                edge[loop left]   node {} (1) 
-                edge[loop right]  node {} (1) 
-                edge[loop below]  node {} (1) 
-            (2) edge[loop above]  node {} (2) 
-                edge[loop below]  node {} (2);
+            (1) edge[loop above]  node[above] {$ab$} node[accset, collacc1, pos=0.40] {} node[accset, collacc0, pos=0.15] {} node[accset, collacc2, pos=0.75] {} (1) 
+                edge[loop left]   node[left] {$a\overline{b}$} node[accset, collacc1] {} node[accset, collacc2, pos=0.15] {} (1) 
+                edge[loop right]  node[right] {$\overline{a}\overline{b}$} node[accset, collacc1] {} (1) 
+                edge[loop below]  node[below] {$\overline{a}b$} node[accset, collacc1] {} node[accset, collacc0, pos=0.15] {} (1) 
+            (2) edge[loop above]  node[above] {$c$} node[accset, collacc1, pos=0.40] {} node[accset, collacc0, pos=0.15] {} node[accset, collacc2, pos=0.75] {} (2) 
+                edge[loop below]  node[below] {$\overline{c}$} node[accset, collacc0] {} node[accset, collacc2, pos=0.15] {} (2);
     
   \end{tikzpicture}
 \end{center}
