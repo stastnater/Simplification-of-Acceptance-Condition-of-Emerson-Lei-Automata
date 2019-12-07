@@ -1,15 +1,11 @@
+#!/usr/bin/python3
+
 import spot
 import enum
 import sys
 import argparse
-import copy
 from scipy.optimize import linear_sum_assignment
-spot.setup()
 
-glob_counter = 0 #TODO: remove
-def foo():
-    global glob_counter 
-    glob_counter += 1
 
 ### ACC CLASS ###
 class MarkType(enum.Enum):
@@ -306,7 +302,7 @@ def remove_mark(aut, scc, m):
                     e.acc.clear(m)
                      
                         
-def simpl_inf_con(aut, acc, scc, subsets): 
+def simpl_inf_con(aut, acc, scc, subsets):     
     for sub in subsets:        
         if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
             sub_i = acc.find_m_dis(sub[1])
@@ -318,7 +314,7 @@ def simpl_inf_con(aut, acc, scc, subsets):
                     acc.rem_from_dis(index, sub[0])                
                 scc_clean_up_edges(aut, acc, scc)
                 simpl_inf_con(aut, acc, scc, scc_subsets(aut, scc))
-                return                        
+                return                     
 
 
 def simpl_fin_con(aut, acc, scc):
@@ -338,7 +334,6 @@ def simpl_fin_con(aut, acc, scc):
                     add_dupl_marks(aut, scc, fin2.num, fin1.num)
                     #print("fin con removing: ", fin2.num, " IN SCC: ", scc.states())
                     #0   
-                    #foo()                 
                     acc.clean_up(aut, scc)
                     simpl_fin_con(aut, acc, scc)
                     return
@@ -379,7 +374,6 @@ def simpl_inf_dis(aut, acc, scc, subsets):
         #print("inf dis removing: ", unit_inf[index][0], " IN SCC: ", scc.states())
         #0
         #randaut 4
-        #foo()
     acc.clean_up(aut, scc) 
     
 
@@ -388,10 +382,9 @@ def simpl_fin_dis(aut, acc, scc, subsets):
         if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
-            if (any(len(acc[i]) == 1 for i in super_i)):
+            if sub_i == super_i: #(any(len(acc[i]) == 1 for i in super_i)):
                 #print("fin dis removing: ", sub[0], " IN SCC: ", scc.states())
                 #0 
-                #foo()         
                 remove_mark(aut, scc, sub[0])
                 acc.clean_up(aut, scc)
                 simpl_fin_dis(aut, acc, scc, scc_subsets(aut, scc))
@@ -424,10 +417,13 @@ def simpl_co_con(aut, acc, scc, compl_sets):
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
             if all(i in fin_i for i in inf_i):
-                remove_mark(aut, scc, inf)
+                #remove_mark(aut, scc, inf)
                 #print("removing compl mark: ", inf, " IN SCC: ", scc.states())
                 #13
-                acc.clean_up(aut, scc)
+                for index in reversed(inf_i):
+                    acc.rem_from_dis(index, inf)
+                #acc.clean_up(aut, scc)
+                scc_clean_up_edges(aut, acc, scc)
                 simpl_co_con(aut, acc, scc, scc_compl_sets(aut, scc))
                 return
             else:
@@ -501,8 +497,9 @@ def simplify(aut, acc, scc):
     # simplify mark subsets
     simpl_inf_con(aut, acc, scc, scc_subsets(aut, scc))
     simpl_fin_con_subsets(aut, acc, scc, scc_subsets(aut, scc))
-    simpl_inf_dis(aut, acc, scc, scc_subsets(aut, scc))
-    simpl_fin_dis(aut, acc, scc, scc_subsets(aut, scc))
+    simpl_fin_con(aut, acc, scc)
+    #simpl_inf_dis(aut, acc, scc, scc_subsets(aut, scc))
+    #simpl_fin_dis(aut, acc, scc, scc_subsets(aut, scc))
     
     # simplify complementary marks
     simpl_co_con(aut, acc, scc, scc_compl_sets(aut, scc))
@@ -517,9 +514,9 @@ def simplify(aut, acc, scc):
 
 ### MERGE AUXILIARY ###
 
-def shift_fst_acc(aut, acc, scc):
+def shift_fst_acc(aut, acc, scc, m):
     print("Shifting: ", acc)
-    next_m = acc.max()  + 1
+    next_m = m + 1
     log = {}
 
     for dis in acc.formula:
@@ -609,15 +606,12 @@ def place_con(dis, con, used):
         
 
 def add_dupl_marks(aut, scc, origin_m, new_m):
-    print(scc.states())    
     for s in scc.states():
         for e in aut.out(s):
-            print(s, " to ", e.dst, "dst in scc ", e.dst in scc.states())
-            print("orig mark on edge", origin_m, " -- ", origin_m in e.acc.sets(), "edge has ", e.acc)
             if e.dst in scc.states() and origin_m in e.acc.sets():
                 if not new_m in e.acc.sets():
                     e.acc.set(new_m)
-                    #print("         adding mark ", new_m, " to ", s, " -> ", e.dst)
+                    print("         adding mark ", new_m, " to ", s, " -> ", e.dst)
 
 """
 def get_dependencies(acc):
@@ -658,7 +652,6 @@ def resolve_depend(aut, acc1, scc1, acc2, scc2):
                 add_dupl_marks(aut, scc2, d2[0].num, d1[0].num) 
                 print("dependency removed: ", d2[0].num, " changed to ", d1[0].num, " in scc: ", scc2.states())
                 log[1][d1[0].num] = d2[0].num    
-                foo()  
                 for dis in acc2:
                     for con in dis:
                         if con == d2[0]:
@@ -737,21 +730,22 @@ def merge(aut, acc1, scc1, acc2, scc2):
         for con in dis2:
             index = place_con(dis1, con, used)
             if index is None:
-                log[1][con.num] = acc1.max() + 1
-                if con.type == MarkType.Inf:
+                new_num = acc1.max() + 1
+                log[1][con.num] = new_num
+                if con.type == MarkType.Inf:                                
                     for s in scc1.states():
                         for e in aut.out(s):
                             if e.dst in scc1.states():
-                                e.acc.set(acc1.max() + 1) 
-                add_dupl_marks(aut, scc2, con.num, acc1.max() + 1)
-                dis1.append(ACCMark(con.type, acc1.max() + 1))
+                                e.acc.set(new_num) 
+                add_dupl_marks(aut, scc2, con.num, new_num)
+                print("duplicating ", con.num, " change to: ", new_num)
+                dis1.append(ACCMark(con.type, new_num))
                 used.append(True)
-            else:
+            else:            
                 log[1][con.num] = dis1[index].num
                 add_dupl_marks(aut, scc2, con.num, dis1[index].num)
-                print("MERGE ADDED: ", scc2.states(), con.num, " -> ", dis1[index].num)
+                print("MERGE, change : ", scc2.states(), con.num, " -> ", dis1[index].num)
                 used[index] = True
-    scc_clean_up_edges(aut, acc1, scc2)
     return log
 
 
@@ -778,9 +772,14 @@ def merge_accs(aut, sccs, accs):
         if accs[i] is nempty_accs[0]:
             accs[i] = merged_f
             break
+    
     print_edges(aut, sccs)
 
-    shift_fst_acc(aut, merged_f, nempty_sccs[0])
+    m = 0
+    for acc in nempty_accs:
+        if acc.max() > m:
+            m = acc.max()
+    shift_fst_acc(aut, merged_f, nempty_sccs[0], m)
  
     print(merged_f)
     
@@ -844,6 +843,8 @@ def make_true(aut, scc, merged_acc):
 
 def make_equiv(aut, accs, sccs, logs, merged_acc):
     print_edges(aut, sccs)
+    for l in logs: 
+        print(l[0].states(), l[1])
     for i in range(len(accs)):
         if accs[i] is merged_acc:
             #print("skipping merged")
@@ -930,13 +931,14 @@ def print_edges(aut, sccs):
                     m.append(int(mark))
                 print("From: ", s, " To: ", e.dst, " Marks: ", m)
 
-def print_aut(aut, output, wm):
-    if output is None:
-        print(aut.to_str())
-    else:
-        f = open(output, wm)
+def print_aut(aut, output, m):
+    if output:
+        f = open(output, m)
         f.write(aut.to_str() + '\n')
         f.close()
+    else:
+        print(aut.to_str())
+
 
 def process_aut(aut):
     spot.cleanup_acceptance_here(aut)
@@ -955,6 +957,7 @@ def process_aut(aut):
             simplify(aut, acc, scc)
         accs.append(acc)
     
+    print_edges(aut, sccs)
     new_acc, logs = merge_accs(aut, sccs, accs)
     if new_acc is None:
         if all(acc.sat is True for acc in accs):
@@ -985,6 +988,17 @@ def process_aut(aut):
 
 
 def main(argv):
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-F", "--autfile", type=argparse.FileType("r"), help="File containing automata in HOA format.")
+    parser.add_argument("-O", "--outfile", type=argparse.FileType("w"), help="File to print output to.")
+
+    args = parser.parse_args()
+    
+    if args.autfile:
+        
+
+    """
 
     FILENAME = str(sys.argv[1])
     
@@ -1001,7 +1015,7 @@ def main(argv):
         print_aut(a, None, "w")
         test_aut(a, a2) #remove
         print_aut(a, '_' + FILENAME, "w") #TODO: change to sys argv 2
-    print(glob_counter)
+
     
 
 def test_aut(a1, a2): #TODO: remove
