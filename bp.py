@@ -6,22 +6,55 @@ import sys
 import argparse
 from scipy.optimize import linear_sum_assignment
 
+fin_con_counter = 0
+inf_con_counter = 0
+compl_counter = 0
+false_fin_inf = 0
+false_sub_disjunct = 0
+#TODO: remove
+
 
 ### ACC CLASS ###
 class MarkType(enum.Enum):
+    """Represents whether acceptance set T appears in the formula as Fin(T) or Inf(T).
+    
+    Arguments:
+        enum {int} 
+    """    
     Inf = 1
     Fin = 2
 
 
 class ACCMark: 
+    """Represents an acceptance set.
+    """        
     def __init__(self, mtype, num):
+        """ACCMark constructor.
+        
+        Arguments:
+            mtype {MarkType} -- denotes whether a set appears in Inf or Fin term in the formula
+            num {int} -- number of the acceptance set
+        """        
         self.type = mtype
         self.num = num
 
     def __str__(self):
+        """Return the information about ACCMark as string.
+        
+        Returns:
+            string -- ACCMarks information as string
+        """        
         return ''.join(["Inf" if self.type == MarkType.Inf else "Fin", '(', str(self.num), ')'])
 
     def __eq__(self, other): 
+        """Compare two ACCMarks, return true if they are the same, false otherwise.
+        
+        Arguments:
+            other {ACCMark} -- the other ACCMark
+        
+        Returns:
+            bool -- true if marks are the same, false otherwise
+        """        
         if (self.type == other.type) and (self.num == other.num): 
             return True
         else: 
@@ -63,6 +96,7 @@ class PACC:
         self.sat = val
 
     def count_unique_m(self):
+                
         inf = []
         fin = []
         for dis in self.formula:
@@ -91,22 +125,18 @@ class PACC:
         return f
 
     def resolve_redundancy(self):
-        unit_dis = []
-        for dis in self.formula:
-            if len(dis) == 1:
-                unit_dis.append(dis[0])
+        rem_d = []
+        int_f = self.int_format()
+        for i in range(len(self.formula)):
+            for j in range(len(self.formula)):
+                if i != j and set(int_f[i]).issubset(set(int_f[j])) and not set(int_f[i]) == set(int_f[j]) and j not in rem_d:
+                    rem_d.append(j)
 
         res_f = []
-        for dis in self.formula:
-            if len(dis) == 1:
-                res_f.append(dis)
-            elif all(con not in unit_dis for con in dis):
-                    res_f.append(dis)
-                   
-        self.formula = []
-        for dis in res_f:
-            if dis not in self.formula:
-                self.formula.append(dis)
+        for i in range(len(self.formula)):
+            if self.formula[i] not in res_f and i not in rem_d:
+                res_f.append(self.formula[i])
+        self.formula = res_f
 
     def clean_up(self, aut, scc):
         clean_f = []
@@ -157,10 +187,10 @@ class PACC:
 ### PARSE ACC ###
 
 def parse_acc(acc):
-    """
-    Parses an acc in DNF and returns the formula represented by list of lists of ACCMarks. 
-    The inner lists represent disjuncts of the formula. 
-    The inner lists contain ACCMark (see ACCMark class documentation) objects representing atomic conditions (such as Inf(1)).
+    """Parses an acc in DNF and returns the formula represented by list of
+    lists of ACCMarks. The inner lists represent disjuncts of the formula. The
+    inner lists contain ACCMark (see ACCMark class documentation) objects
+    representing atomic conditions (such as Inf(1)).
 
     Example: (Fin(1) & Inf(2)) | (Inf(3)) | (Fin(1) & Fin(4)) --> [[ACCMark(2,1), ACCMark(1,2)] [ACCMark(1,3)] [ACCMark(2,1), ACCMark(2,4)]]
 
@@ -197,6 +227,13 @@ def parse_acc(acc):
 ### SIMPLIFY AUXILIARY ###
 
 def scc_clean_up_edges(aut, acc, scc):
+    """Removes useless marks from the edges of the given SCC. Useless marks denote transitions of sets that do not appear in the Acc.
+    
+    Arguments:
+        aut {spot::twa} -- input automaton
+        acc {PACC} -- acceptance condition formula
+        scc {spot::scc_info_node} -- SCC
+    """    
     current_m = []
     for dis in acc.formula:
         for con in dis:
@@ -213,20 +250,15 @@ def scc_clean_up_edges(aut, acc, scc):
 
 
 def scc_current_marks(aut, scc): 
-    """
-    Return a list of marks currently present on edges in given scc.
-
-    Parameters
-    ----------
-    aut : spot::twa        
-    scc : spot::scc_info_node 
-
-    Returns
-    -------
-    [int]
-        List of marks on edges of given scc.
-    """
-
+    """Return a list of marks currently present on edges in given scc.
+    
+    Arguments:
+        aut {spot::twa} -- input automaton
+        scc {spot::scc_info_node} -- SCC
+    
+    Returns:
+        [int] -- list of marks on edges of given scc
+    """    
     marks = []
     for s in scc.states():
         for e in aut.out(s): 
@@ -236,7 +268,34 @@ def scc_current_marks(aut, scc):
     return marks
 
 
-def scc_compl_sets(aut, scc): #return array of tuples of complementary marks in given scc 
+def scc_everywhere(aut, scc):
+    """Return a list of acceptance sets that include all transitions in the SCC.
+    
+    Arguments:
+        aut {spot::twa} -- input automaton
+        scc {spot::scc_info_node} -- SCC
+    
+    Returns:
+        [int] -- list of marks (acceptance sets) that include all transtitions of SCC
+    """    
+    m_all_edges = set(scc_current_marks(aut, scc))
+    for s in scc.states():
+        for e in aut.out(s):
+            if e.dst in scc.states():
+                for m in list(m_all_edges):
+                    if not m in e.acc.sets():
+                        m_all_edges.remove(m) 
+    return list(m_all_edges)
+
+
+def scc_compl_sets(aut, scc): 
+    """Returns a list of tuples. Each tuple contains numbers of acceptance sets m1, m2, 
+    such that the set of transitions that hold m1 is complementary with the set of transitions
+    that hold m2.
+    
+    Returns:
+        [(int, int))] -- array of tuples of complementary marks in given scc 
+    """    
     compl = []
     marks = scc_current_marks(aut, scc)
     for m1 in marks:
@@ -245,29 +304,23 @@ def scc_compl_sets(aut, scc): #return array of tuples of complementary marks in 
                 are_compl = True
                 for s in scc.states():
                     for e in aut.out(s):
-                        if e.dst in scc.states() and (m1 in e.acc.sets() and m2 in e.acc.sets()) or (m1 not in e.acc.sets() and m2 not in e.acc.sets()):
+                        if e.dst in scc.states() and ((m1 in e.acc.sets() and m2 in e.acc.sets()) or (m1 not in e.acc.sets() and m2 not in e.acc.sets())):
                             are_compl = False
                 if are_compl and (m1, m2) not in compl and (m2, m1) not in compl:
                     compl.append((m1, m2))
     return compl
 
 
-
 def scc_subsets(aut, scc):
-    """
-    Return a list of tuples (m1, m2) containing acceptance marks m1 and m2 where m2 is a subset of m1 in given scc.
-
-    Parameters
-    ----------
-    aut : spot::twa        
-    scc : spot::scc_info_node 
-
-    Returns
-    -------
-    [(int, int)]
-        List of tuples of subsets.
-    """
-
+    """[summary]
+    
+    Arguments:
+        aut {spot::twa} -- input automaton
+        scc {spot::scc_info_node} -- SCC
+    
+    Returns:
+        [(int, int)] -- list of tuples that denote complementary sets
+    """    
     marks = scc_current_marks(aut, scc)
     subsets = []
     for m1 in marks:
@@ -281,17 +334,15 @@ def scc_subsets(aut, scc):
                 if is_sub:
                     subsets.append((m1, m2))
     return subsets 
- 
 
 
-def remove_mark(aut, scc, m): 
-    """
-    Removes mark m from all edges in the given scc.
+def remove_mark(aut, scc, m): #TODO: remove
+    """Removes mark m from all edges in the given scc.
 
     Parameters
     ----------
-    aut : spot::twa        
-    scc : spot::scc_info_node 
+    aut : spot::twa
+    scc : spot::scc_info_node
     m   : int
     """
 
@@ -302,7 +353,16 @@ def remove_mark(aut, scc, m):
                     e.acc.clear(m)
                      
                         
-def simpl_inf_con(aut, acc, scc, subsets):     
+def simpl_inf_con(aut, acc, scc, subsets):    
+    """If there are acceptance sets X, Y, such that X is a subset of Y, and X, Y always appear 
+    in the same disjuncts, then remove X.
+    
+    Arguments:
+        aut {spot::twa} -- input automaton
+        acc {PACC} -- acceptance condition formula
+        scc {spot::scc_info_node} -- SCC
+        subsets {[(int, int)]} -- list if tuples that denote which set includes which
+    """     
     for sub in subsets:        
         if acc.get_mtype(sub[0]) == MarkType.Inf and acc.get_mtype(sub[1]) == MarkType.Inf:
             sub_i = acc.find_m_dis(sub[1])
@@ -317,7 +377,7 @@ def simpl_inf_con(aut, acc, scc, subsets):
                 return                     
 
 
-def simpl_fin_con(aut, acc, scc):
+def simpl_fin_same_dis(aut, acc, scc):
     fins = []
     for dis in acc.formula:
         for con in dis:
@@ -335,8 +395,13 @@ def simpl_fin_con(aut, acc, scc):
                     #print("fin con removing: ", fin2.num, " IN SCC: ", scc.states())
                     #0   
                     acc.clean_up(aut, scc)
-                    simpl_fin_con(aut, acc, scc)
+                    simpl_fin_same_dis(aut, acc, scc)
                     return
+
+
+def simpl_fin_less_dis(aut, acc, scc):
+    #TODO:
+    pass
 
 
 def simpl_fin_con_subsets(aut, acc, scc, subsets):
@@ -345,13 +410,13 @@ def simpl_fin_con_subsets(aut, acc, scc, subsets):
             sub_i = acc.find_m_dis(sub[1])
             super_i = acc.find_m_dis(sub[0])
             if (all(i in super_i for i in sub_i)):
-                #remove_mark(aut, scc, sub[1])
                 #print("fin con subsets removing: ", sub[1], " IN SCC: ", scc.states())
                 #0
                 #4
-                for index in reversed(sub_i):
+                for index in sub_i:
                     acc.rem_from_dis(index, sub[1])
                 scc_clean_up_edges(aut, acc, scc)
+                acc.clean_up(aut, scc)
                 simpl_fin_con_subsets(aut, acc, scc, scc_subsets(aut, scc))
                 return
             else:
@@ -360,38 +425,9 @@ def simpl_fin_con_subsets(aut, acc, scc, subsets):
                         acc.rem_from_dis(i, sub[1])
                         #0
                         acc.clean_up(aut, scc)
-        
-                
-def simpl_inf_dis(aut, acc, scc, subsets):               
-    unit_inf = [] #TODO: remove dis instead
-    for j in range(len(acc.formula)):
-        if len(acc[j]) == 1 and acc[j][0].type == MarkType.Inf:
-            unit_inf.append(j)
-    if len(unit_inf) < 2:
-        return
-    for index in unit_inf:
-        replace_marks(aut, scc, acc[index][0].num, acc[unit_inf[0]][0].num)
-        #print("inf dis removing: ", unit_inf[index][0], " IN SCC: ", scc.states())
-        #0
-        #randaut 4
-    acc.clean_up(aut, scc) 
-    
+                           
 
-def simpl_fin_dis(aut, acc, scc, subsets):
-    for sub in subsets:
-        if acc.get_mtype(sub[0]) == MarkType.Fin and acc.get_mtype(sub[1]) == MarkType.Fin:
-            sub_i = acc.find_m_dis(sub[1])
-            super_i = acc.find_m_dis(sub[0])
-            if sub_i == super_i: #(any(len(acc[i]) == 1 for i in super_i)):
-                #print("fin dis removing: ", sub[0], " IN SCC: ", scc.states())
-                #0 
-                remove_mark(aut, scc, sub[0])
-                acc.clean_up(aut, scc)
-                simpl_fin_dis(aut, acc, scc, scc_subsets(aut, scc))
-                return                
-
-
-def simpl_co_dis(aut, acc, scc, compl_sets): 
+def simpl_co_dis(aut, acc, scc, compl_sets): #TODO:
     for co in compl_sets:
         if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
             inf, fin = co[0], co[1] 
@@ -399,7 +435,7 @@ def simpl_co_dis(aut, acc, scc, compl_sets):
                 inf, fin = co[1], co[0]
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
-            if all(i not in fin_i for i in inf_i) and all(len(acc[j]) == 1 for j in fin_i):
+            if any(len(acc[j]) == 1 for j in fin_i): 
                 remove_mark(aut, scc, fin)
                 #print("removing compl mark: ", fin, " IN SCC: ", scc.states())
                 #10                
@@ -417,12 +453,10 @@ def simpl_co_con(aut, acc, scc, compl_sets):
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
             if all(i in fin_i for i in inf_i):
-                #remove_mark(aut, scc, inf)
-                #print("removing compl mark: ", inf, " IN SCC: ", scc.states())
                 #13
                 for index in reversed(inf_i):
                     acc.rem_from_dis(index, inf)
-                #acc.clean_up(aut, scc)
+                
                 scc_clean_up_edges(aut, acc, scc)
                 simpl_co_con(aut, acc, scc, scc_compl_sets(aut, scc))
                 return
@@ -430,24 +464,25 @@ def simpl_co_con(aut, acc, scc, compl_sets):
                 for i in inf_i:
                     if i in fin_i:
                         acc.rem_from_dis(i, inf)
-                        acc.clean_up(aut, scc)
+                acc.clean_up(aut, scc)
 
-
-def simpl_false_dis(aut, acc, scc):
-    current_marks = scc_current_marks(aut, scc)
+    
+def simpl_substitute(aut, acc, scc):
+    current = scc_current_marks(aut, scc)
+    everywhere = scc_everywhere(aut, scc)
     rem_d = []
-    for i in range(len(acc.formula)):
+    for i in range(len(acc)):
         for con in acc[i]:
-            if con.num not in current_marks and con.type == MarkType.Inf:
+            if (con.num in everywhere and con.type == MarkType.Fin) or (con.num not in current and con.type == MarkType.Inf):
                 rem_d.append(i)
-                break  
+            elif con.num in everywhere and con.type == MarkType.Inf:
+                acc.rem_from_dis(i, con.num)
+            elif con.num not in current and con.type == MarkType.Fin:
+                acc.rem_from_dis(i, con.num)
     for index in reversed(rem_d):
         acc.rem_dis(index)
-        #print("SCC: ", scc.states(), "removing disjunct: ", index, " because marks in acc not on edges")
-    #print("FUUUUUUUUUU      ", acc)
     acc.clean_up(aut, scc)
-    #print(acc)
-    
+
 
 def simpl_false_subsets(aut, acc, subsets, scc):
     for sub in subsets:
@@ -490,20 +525,17 @@ def simplify(aut, acc, scc):
     acc_l = acc.acc_len()
 
     # remove always false disjuncts
-    simpl_false_dis(aut, acc, scc)
+    simpl_substitute(aut, acc, scc)
     simpl_false_subsets(aut, acc, scc_subsets(aut, scc), scc)
     simpl_false_fin(aut, acc, scc)
 
-    # simplify mark subsets
+    # simplify inclusion mark sets
     simpl_inf_con(aut, acc, scc, scc_subsets(aut, scc))
     simpl_fin_con_subsets(aut, acc, scc, scc_subsets(aut, scc))
-    simpl_fin_con(aut, acc, scc)
-    #simpl_inf_dis(aut, acc, scc, scc_subsets(aut, scc))
-    #simpl_fin_dis(aut, acc, scc, scc_subsets(aut, scc))
+    simpl_fin_same_dis(aut, acc, scc)
     
     # simplify complementary marks
     simpl_co_con(aut, acc, scc, scc_compl_sets(aut, scc))
-    simpl_co_dis(aut, acc, scc, scc_compl_sets(aut, scc))
 
     scc_clean_up_edges(aut, acc, scc)
     print("STATES ", scc.states(), ": ", acc)
@@ -613,62 +645,6 @@ def add_dupl_marks(aut, scc, origin_m, new_m):
                     e.acc.set(new_m)
                     print("         adding mark ", new_m, " to ", s, " -> ", e.dst)
 
-"""
-def get_dependencies(acc):
-    depend = []
-    int_f = acc.int_format()
-    for i in range(len(int_f)):        
-        for j in range(len(int_f)):
-            intersect = list(set(int_f[i]).intersection(set(int_f[j])))
-            if i != j and intersect:
-                for mark in intersect:
-                    if any(d[0].num == mark for d in depend):
-                        for d in depend:
-                            if d[0].num == mark:
-                                if i not in d[1:]:
-                                    d.append(i)
-                                if j not in d[1:]:
-                                    d.append(j)                                    
-                    else:
-                        depend.append([ACCMark(acc.get_mtype(mark), mark), i, j])
-    return depend
-
-def resolve_depend(aut, acc1, scc1, acc2, scc2):
-    acc1_d = get_dependencies(acc1)
-    m = make_matrix(acc1, acc2)
-    row_ind, col_ind = linear_sum_assignment(m) 
-    s_acc2 = []
-    for ci in col_ind:
-        if ci < len(acc2):
-            s_acc2.append(acc2[ci])
-        else: 
-            s_acc2.append([])
-    acc2_d = get_dependencies(PACC(str(s_acc2)))
-    log = (scc2, {})
-    for d1 in acc1_d:
-        for d2 in acc2_d:
-            # dependencies needn't be removed
-            if d1[0].type == d2[0].type and all(d1[i] in d2 for i in range(1, len(d1))):
-                add_dupl_marks(aut, scc2, d2[0].num, d1[0].num) 
-                print("dependency removed: ", d2[0].num, " changed to ", d1[0].num, " in scc: ", scc2.states())
-                log[1][d1[0].num] = d2[0].num    
-                for dis in acc2:
-                    for con in dis:
-                        if con == d2[0]:
-                            con.num = d1[0].num           
-                d2 = []
-                d1 = []
-                break 
-    for d1 in acc1_d:
-        if d1:
-            for i in range(2, len(d1)):
-                for con in acc1[d1[i]]:
-                    if con == d1[0]:
-                        new_m = acc1.max() + 1
-                        add_dupl_marks(aut, scc1, con.num, new_m)
-                        con.num = new_m
-    return log
-"""                                                     
 
 def resolve_depend(aut, acc1, scc1, acc2, scc2):
     m = make_matrix(acc1, acc2)
@@ -750,8 +726,6 @@ def merge(aut, acc1, scc1, acc2, scc2):
 
 
 def merge_accs(aut, sccs, accs):
-    print("merge")
-    print_edges(aut, sccs)
     nempty_accs = []
     nempty_sccs = []
 
@@ -773,18 +747,12 @@ def merge_accs(aut, sccs, accs):
             accs[i] = merged_f
             break
     
-    print_edges(aut, sccs)
-
     m = 0
     for acc in nempty_accs:
         if acc.max() > m:
             m = acc.max()
     shift_fst_acc(aut, merged_f, nempty_sccs[0], m)
  
-    print(merged_f)
-    
-    #print("NEW ACC TO USE FOR MERGE: ", merged_f, sccs[0].states())
-
     logs = []
     for dis1 in merged_f.int_format():
         for dis2 in merged_f.int_format():
@@ -801,7 +769,6 @@ def merge_accs(aut, sccs, accs):
             for log in logs:
                 if log[0] == l[0]:
                     log[1].update(l[1])
-
     return merged_f, logs 
 
 
@@ -892,14 +859,7 @@ def eval_set(aut, mark, scc, m_all_e):
         
 def try_eval(aut, acc, scc):
     scc_edge_c = 0
-    m_all_edges = set(scc_current_marks(aut, scc))
-    for s in scc.states():
-        for e in aut.out(s):
-            if e.dst in scc.states():
-                scc_edge_c += 1
-                for m in list(m_all_edges):
-                    if not m in e.acc.sets():
-                        m_all_edges.remove(m)                    
+    m_all_edges = scc_everywhere(aut, scc)                   
 
     eval_f = False
     for dis in acc.formula:
