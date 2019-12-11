@@ -276,7 +276,7 @@ The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \ac
 
 \chapter{SCC-based simplification of acceptance conditions of TELA}
 \label{chap:simpl_tela}
-This chapter presents the proposed simplification methods for TELA. The first section describes the process of analyzing SCCs. The second section proposes several techniques that may remove useless acceptance sets from SCCs selected based on the analysis in Section \ref{sec:init_analysis}. The third section presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton. This section also covers how to identify and resolve possible conflicts caused by dependencies between disjuncts. Section four describes the necessary modifications to the simplified automaton that ensure its equivalence with the input automaton. 
+This chapter presents the proposed simplification methods for TELA. The first section covers the removal of useless transitions from all acceptance sets. The second section describes the process of analyzing SCCs. The third section proposes several techniques that may remove useless acceptance sets from SCCs selected based on the analysis in Section \ref{sec:init_analysis}. Section four presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton. This section also covers how to identify and resolve possible conflicts caused by dependencies between disjuncts. Section five describes the necessary modifications to the simplified automaton that ensure its equivalence with the input automaton. 
 
 In this chapter, let the input TELA have at least one acceptance set. Let the acceptance condition formula of the TELA be in disjunctive normal form (DNF). When referring to the whole automaton, we use notation $\mathcal{A}$. $Acc$ denotes the acceptance condition formula of the whole automaton. $\mathcal{A'}$ refers to a sub-automaton induced by an SCC of the original automaton, and $Acc'$ refers to the acceptance condition formula of $\mathcal{A'}$.
 
@@ -287,6 +287,14 @@ Because the formula is in DNF, we can represent it as
 where each $d_k$ is a disjunct. Further, each such disjunct $d_k$ is represented as a set of conjuncts. For example, formula $Acc_e = (\text{Inf}(T_1) \wedge \text{Fin}(T_2)) \vee (\text{Inf}(T_3))$ is represented by $Acc_e = \{d_1, d_2\}$, where $d_1 = \{\text{Inf}(T_1), \text{Fin}(T_2)\}, d_2 = \{\text{Inf}(T_3)\}$. 
 
 Let $S$ be the set of states of an SCC. Then $A = \{t \in \delta \mid t^s \in S \wedge t^d \in S\}$ is the set of all transitions of that SCC. In other words, $A$ is a set of all transitions in $\mathcal{A'}$.
+
+\section{Removing useless transitions from acceptance sets}
+Any accepting run of $\mathcal{A}$ is always contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any run of $\mathcal{A}$. Therefore, such transition $t_{o}$ never changes the boolean value of set $T_i$ such that $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ in either of Inf$(T_i)$, Fin$(T_i)$.
+
+We can modify each acceptance set $T_i, i \in \{1, 2, \dots, n\}$ of $Acc$ as follows:
+\begin{equation*}
+  T_i = T_i \smallsetminus T_{o}.
+\end{equation*}
 
 \section{Initial analysis of SCCs}
 \label{sec:init_analysis}
@@ -493,16 +501,16 @@ Let $d_S$ be a disjunct of $Acc_S$ and $d_l$ be a disjunct of $Acc_l$. The mergi
   \item Try to pair each conjunct in $Acc_l$ with a conjunct in $Acc_S$. Such pairing is possible under these conditions: Both conjuncts are of the same type, meaning that either both are Fin or both are Inf. The conjunct that belongs to $d_l$ is labeled as unused.
   \item \begin{enumerate}[a)]
     \item If such pairing exists, then we can define injective function $\varphi_l (T_l) = T_S$, where $T_l$ is the acceptance set of the conjunct in $d_l$, and $T_S$ is the acceptance set of the conjunct in $d_S$. Then label the conjunct of $d_S$ as used.
-    \item If such pairing does not exist, then add a new conjunct to $d_S$. Let the new conjunct be of the same type as the conjunct in $d_l$ that could not be paired. It is necessary to prevent changing the language when adding the new conjunct. That can be achieved if the conjunct is satisfied by any run of $\mathcal{A'}$. In other words, if its type is Fin, then let the new acceptance set $T_n$ be an empty set. If the type is Inf, then let $T_n$ be a set of all transitions of the SCC. Label the new conjunct as used.
+    \item If such pairing does not exist, then add a new conjunct to $d_S$. Let the new conjunct be of the same type as the conjunct in $d_l$ that could not be paired. It is necessary to prevent changing the language when adding the new conjunct. That can be achieved if the conjunct is satisfied by any run of $\mathcal{A'}$. In other words, if its type is Fin, then let the new acceptance set $T_x$, where $x = n + 1$\footnote{It is necessary to update the number acceptance sets of $\mathcal{A}_S$ to reflect this change. Let $T_i, i \in \{1,2, \dots, n, n+1\}$ denote any acceptance set of $Acc_S$. Further references to $n$ denote the highest number of the set.}, be an empty set. If the type is Inf, then let $T_x$ be a set of all transitions of the SCC. Label the new conjunct as used.
   \end{enumerate}
 \end{enumerate}
 The process is complete when all conjuncts of $d_l$ are successfully paired.
 
-For example, consider $d_S = \{\text{Inf}(T_1)\}$, $d_l = \{\text{Inf}(T_2), \text{Inf}(T_3)\}$. First step is to mark Inf$(T_1)$ as unused. Then we attempt to find pairing for Inf$(T_2)$. The only possible pairing is with Inf$(T_1)$. Therefore, we can define $\varphi_l(T_2) = T_1$ and label Inf$(T_1)$ as used. Inf$(T_2)$ cannot be paired with any element of $d_S$. It is necessary to add a new conjunct to $d_S$, resulting in $d_S = \{\text{Inf}(T_1), \text{Inf}(T_{new})\}$, where $T_{new}$ is a set of all transition of the SCC. We can define $\varphi_l(T_3) = T_{new}$ and label Inf$(T_{new})$ as used. All conjuncts in $d_l$ are paired, therefore the merging process of disjuncts $d_S$ and $d_l$ is complete.
+For example, consider $d_S = \{\text{Inf}(T_1)\}$, $d_l = \{\text{Inf}(T_2), \text{Inf}(T_3)\}$. First step is to mark Inf$(T_1)$ as unused. Then we attempt to find pairing for Inf$(T_2)$. The only possible pairing is with Inf$(T_1)$. Therefore, we can define $\varphi_l(T_2) = T_1$ and label Inf$(T_1)$ as used. Inf$(T_2)$ cannot be paired with any element of $d_S$. It is necessary to add a new conjunct to $d_S$, resulting in $d_S = \{\text{Inf}(T_1), \text{Inf}(T_4)\}$, where $T_{4}$ is a set of all transition of the SCC. We can define $\varphi_l(T_3) = T_4$ and label Inf$(T_4)$ as used. All conjuncts in $d_l$ are paired, therefore the merging process of disjuncts $d_S$ and $d_l$ is complete.
 
 \subsection{Resolving conflicts caused by dependencies}
 \label{subsec:resolve_conflicts}
-Before merging the formulae, it is necessary to check if any conflicts may occur during the process. Conflicts during merging are situations that, if unresolved, may lead to two distinct acceptance sets of $Acc_l \in F$ being mapped by $\varphi_l$ to only one set in $Acc_S$. For example, consider $Acc_S = (Inf(T_1) \wedge Fin(T_2)) \vee (Inf(T_1))$, and $Acc_l = Inf(T_3) \vee Inf(T_4)$. In this case, if we define $\varphi_l (T_3) = T_1 and \varphi_l(T_4) = T_1$, then sets $T_3$ and $T_4$ are both mapped to the same set, which changes the language.   
+Before merging the formulae, it is necessary to check if any conflicts may occur during the process. Conflicts during merging are situations that, if unresolved, may lead to two distinct acceptance sets of $Acc_l \in F$ being mapped by $\varphi_l$ to only one set in $Acc_S$. For example, consider $Acc_S = (\text{Inf}(T_1) \wedge \text{Fin}(T_2)) \vee (\text{Inf}(T_1))$, and $Acc_l = \text{Inf}(T_3) \vee \text{Inf}(T_4)$. In this case, if we define $\varphi_l (T_3) = T_1 and \varphi_l(T_4) = T_1$, then sets $T_3$ and $T_4$ are both mapped to the same set, which changes the language.   
 
 Conflicts only may occur when $Acc_S$ contains two or more disjuncts that contain the same element. In other words, the intersection of such disjuncts is not an empty set. If $Acc_S$ does not contain such disjuncts, then we may proceed with merging the formulae. 
  
@@ -517,7 +525,17 @@ If we discover possible conflicts, then we simulate the merging process to deter
 
 These incorrect mappings can be avoided by replacing all additional occurrences of the same set with a new set. The new set has to contain the same transitions as the original set, to prevent changing the language. 
 
+More formally, let $T_i$ denote an acceptance set that only appears in $Acc_S$ as Inf$(T_i)$. If the following condition holds
+\begin{equation*}
+  \exists d_k, d_l \in Acc_S \colon i \in \{1, 2, \dots, n\} \wedge \text{Inf}(T_i) \in d_k \wedge \text{Inf}(T_i) \in d_l \wedge k < l
+\end{equation*}
+then we modify each disjunct $d_l$ as follows:
+\begin{equation*}
+  d_l = (d_l \smallsetminus \{\text{Inf}(T_i)\}) \cup \{\text{Inf}(T_x)\}
+\end{equation*}
+where $T_x = T_i$ and $x = n + 1$.
 
+The algorithm is analogous for Fin$(T_i)$.
 
 \section{Restoring equivalence with the original automaton}
 \label{sec:restore_equiv}
