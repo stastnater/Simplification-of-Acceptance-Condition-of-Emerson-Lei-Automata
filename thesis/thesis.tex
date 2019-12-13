@@ -55,8 +55,8 @@
     advisor       = {doc. RNDr. Jan Strejček, Ph.D.},
     title         = {Simplification\\ of Acceptance Condition\\ of Emerson-Lei Automata},
     TeXtitle      = {Simplification\\ of Acceptance Condition\\ of Emerson-Lei Automata},
-    keywords      = {TELA, TGBA, omega-automata, SPOT, SCC-based simplifications},
-    TeXkeywords   = {TELA, TGBA, $\omega$-automata, SPOT, SCC-based simplifications},
+    keywords      = {TELA, TGBA, omega-automata, SPOT, SCC-based simplifications, automata reduction},
+    TeXkeywords   = {TELA, TGBA, $\omega$-automata, SPOT, SCC-based simplifications, automata reduction},
     abstract      = {%
     This thesis proposes SCC-based simplifications of acceptance condition formula for transition-based Emerson-Lei automata (TELA). These simplifications aim to reduce the number of unique acceptance sets of the automaton. The thesis includes a Python program that implements the proposed method. The effectivity of the program is experimentally evaluated.
     },
@@ -74,6 +74,7 @@
 \usepackage{amsmath}  
 \usepackage{amsthm}
 \usepackage{amssymb}
+\usepackage{mathtools}
 \usepackage{amsfonts}
 \usepackage{url}      
 \usepackage{markdown} 
@@ -147,50 +148,57 @@
 \newcommand{\accsquare}{\begin{tikzpicture} \node[accset, collacc0] {}; \end{tikzpicture}}
 
 \chapter{Introduction}
-Our society has become heavily reliant on computer systems in order to function. Unexpected behavior of software often results merely in minor inconvenience. However is some cases, it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the properties of software in question behave as intended. 
+Our society has become heavily reliant on computer systems. Unexpected behavior of software often results merely in minor inconvenience. However is some cases, it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the software in question behaves as intended. 
 
-One such verification method is model-checking. The basic idea of this method is using finite state automata to accurately describe the current state of the given program at any time during its execution. The states of the automaton represent the current state of the program, and the transitions between them describe how specific events shift the state of the program from one to another. To be able to describe programs that should never terminate, we use $\omega$-automata -- finite automata on infinite words. During the process of model-checking, a product of two automata is created. It is desirable for the product to be as small as possible, which can be achieved by applying reduction methods to the original automata. 
+One such verification method is model checking. The basic idea of this method is using finite state automata to accurately describe the behavior of the given program at any time during its execution. The states of the automaton represent the current state of the program, and the transitions between them describe how specific events shift the state of the program from one to another. To be able to describe programs that should never terminate, we use $\omega$-automata -- finite automata on infinite words. During the process of model checking, a product of two automata is created. It is desirable for the product to be as small as possible, which can be achieved by applying reduction methods to the original automata before creating their product.
 
-For some reduction techniques, such as simulation-based reduction and degeneralization, it is beneficial to minimize the number of acceptance sets in the automaton. Babiak et al. \cite{spin2013} introduce the SCC-based simplifications of acceptance conditions. It is a method that proposes how to reduce the number of acceptance sets in Transition-based Büchi automata (TGBA). For each strongly connected component, it evaluates the relation between acceptance sets and removes the useless ones. 
+For some reduction techniques, such as simulation-based reduction, it is beneficial to minimize the number of acceptance sets in the automaton. Babiak et al. \cite{spin2013} introduce the SCC-based simplifications of acceptance conditions. It is a method that proposes how to reduce the number of acceptance sets in \emph{transition-based generalized Büchi automata} (TGBA). For each strongly connected component, it evaluates the relation between acceptance sets and removes the useless ones. 
 
-The goal of this thesis is to propose and implement an analogous simplification method for transition-based Emerson-Lei automata (TELA). This method includes techniques to identify useless acceptance sets and modifications to the acceptance condition formula. During this process, we obtain separate acceptance condition formulas for each accepting SCC. Therefore, the presented method also describes how to merge these formulas into one. Finally, it describes the necessary modifications which ensure that the simplified automaton and the original automaton are equivalent. The desired outcome is to reduce the number of unique acceptance sets in the automaton. 
+The goal of this thesis is to propose and implement an analogous simplification method for \emph{transition-based Emerson-Lei automata} (TELA). This method includes techniques to identify useless acceptance sets and modifications to the acceptance condition formula. During this process, we obtain separate acceptance condition formulas for each accepting SCC. Therefore, the presented method also describes how to merge these formulas into one. Finally, it describes the necessary modifications which ensure that the simplified automaton and the original automaton are equivalent. The desired outcome is to reduce the number of unique acceptance sets in the automaton. 
 
-This thesis is structured into several chapters. Chapter two contains the basic definitions used throughout the thesis. Chapter three summarizes the ideas of the SCC-based simplification method for TGBA \cite{spin2013}. Chapter four presents the SCC-based simplification of TELA. Chapter five discusses the implementation specifics of this method. Chapter six presents the results of experimental evaluation of the implemented tool. Chapter seven contains the conclusion. TODO: add more details
+This thesis is structured into several chapters. Chapter two contains the basic definitions used throughout the thesis. Chapter three summarizes the ideas of the SCC-based simplification method for TGBA \cite{spin2013}. Chapter four presents the SCC-based simplification of TELA. Chapter five discusses the implementation of this method. Chapter six presents the results of experimental evaluation of the implemented tool. Chapter seven contains the conclusion. 
 
 \chapter{Basic definitions}
 \label{chap:basic_definitions}
-TODO: popis obsahu kapitoly
+TODO: TGBA vs TELA
 
 \section{Transition-based Emerson-Lei automaton (TELA)} 
 \label{sec:tela}
-A transition-based Emerson-Lei automaton, as defined in \cite{bloemen2017}, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
+A transition-based Emerson-Lei automaton, as defined by Bloemen et al. \cite{bloemen2017}, is a tuple $\mathcal{A} = (\Sigma, Q, q_0, \delta, Acc)$, where
 \begin{itemize}
   \item $\Sigma$ is an alphabet,
   \item $Q$ is a finite set of states,
   \item $q_0 \in Q$ is the initial state,
   \item $\delta \subseteq Q \times \Sigma \times Q$ is a transition relation,
-  \item $Acc$ is the acceptance condition formula, defined as a positive Boolean function over terms of the form Fin$(T_i)$ or Inf$(T_i)$ for any acceptance set $T_i \subseteq \delta, T_i \in \{1, 2, \dots, n\}$. 
-  
-  In figures, an acceptance set is represented by acceptance marks (for example \accmarkblue) placed on the transitions which belong to that set. 
+  \item $Acc$ is the acceptance condition formula, defined as a Boolean formula over terms of the form Fin$(T_i)$ or Inf$(T_i)$ for any acceptance set $T_i \subseteq \delta, T_i \in \{1, 2, \dots, n\}$. 
 \end{itemize}
+
+In figures, an acceptance set is represented by acceptance marks (for example \accmarkblue) placed on the transitions which belong to that set (as seen, for example, in Figure \ref{fig:tgba}). 
 
 For a transition $t = (t^s, t^l, t^d) \in \delta$, $t^s$ denotes its source, $t^l$ its label and $t^d$ its destination.
 
-$\rho \in \delta^\omega$ where $\rho(0)^s = q_0 \wedge \forall j \geq 0 \colon \rho(j)^d = \rho(j + 1)^s$ is a run of $\mathcal{A}$ over $\Sigma^\omega$.
+A run of $\mathcal{A}$ over $\Sigma^\omega$ is defined as $\rho \in \delta^\omega$ where 
+\begin{equation*}
+  \rho(0)^s = q_0 \wedge \forall j \geq 0 \colon \rho(j)^d = \rho(j + 1)^s.
+\end{equation*}
 
 The acceptance of a run $\rho$ is defined by evaluating $Acc$ over $\rho$ where
 \begin{itemize}
-  \item Fin$(T_i)$ is true if all the transitions in $T_i$ occur finitely often, 
-  \item Inf$(T_i)$ is true if some transition in $T_i$ occurs infinitely often.
+  \item Fin$(T_i)$ is true if and only if all the transitions in $T_i$ occur finitely often in $\rho$, 
+  \item Inf$(T_i)$ is true if and only if some transition in $T_i$ occurs infinitely often in $\rho$.
 \end{itemize}
+
+An infinite word $w \in \Sigma^\omega$ is an infinite sequence of letters of $\Sigma$. Word $w$ is accepted by $\mathcal{A}$ if $Acc$ is evaluated as true for the run of $\mathcal{A}$ over the word $w$. 
+
+The language of $\mathcal{A}$ is a set of words $w$ such that $\mathcal{A}$ has an accepting run over $w$.
 
 \section{Transition-based generalized Büchi automaton (TGBA)}
 \label{sec:tgba}
-Transition-based Generalized Büchi Automaton, as defined in \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where 
+A transition-based generalized Büchi automaton, as defined by Bloemen et al. \cite{bloemen2017}, is a TELA $\mathcal{A'} = (\Sigma, Q, q_0, \delta, Acc)$ where for some $n$
 \begin{equation*}
-  Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n)
+  Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n).
 \end{equation*} 
-for some $n$. A run of TGBA over an infinite word is accepting if some transition in $T(i)$ occurs infinitely often for all $i \in \{1, 2, \dots, n\}$. 
+As follows from the definition of TELA, a run of a TGBA over an infinite word is accepting if, for all $i \in \{1, 2, \dots, n\}$, some transition in $T(i)$ occurs infinitely often in the run of $\mathcal{A'}$. 
 
 \chapter{SCC-based simplification of acceptance conditions of TGBA} 
 \label{chap:tgba_simpl}
@@ -200,13 +208,13 @@ Let $\mathcal{A'}$ be a TGBA with $n$ acceptance sets:
 \begin{equation*}
   Acc = \text{Inf}(T_1) \wedge \text{Inf}(T_2) \wedge \dots \wedge \text{Inf}(T_n).
 \end{equation*}
-Let $m$ be the number or accepting SCCs in $\mathcal{A'}$ and $A_\delta = \{A_1, \dots, A_m\}$ be the set of all transitions induced by the accepting SCCs of $\mathcal{A'}$. 
-Any accepting run of $\mathcal{A'}$ will be contained in some accepting SCC. Therefore any transitions that are not in $A_\delta$ can be removed without changing the language accepted by $A'$. We can modify the acceptance sets of $\mathcal{A'}$ as follows: 
+Let $m$ be the number or accepting SCCs in $\mathcal{A'}$ and let $\{A_1, \dots, A_m\}$ denote the set of all accepting SCCs. Then $A_\delta = A_1 \cup \dots \cup A_m$ is the set of all transitions induced by the accepting SCCs\footnote{Transitions induced by an SCC are transitions such that their source and destination are both states of that SCC.} of $\mathcal{A'}$. 
+The suffix of any accepting run of $\mathcal{A'}$ will be contained in some accepting SCC. Therefore any transitions that are not in $A_\delta$ can be removed from all acceptance sets of $\mathcal{A'}$ without changing the language accepted by $A'$. We can modify the acceptance sets of $\mathcal{A'}$ as follows: 
 \begin{equation*}
   Acc = \text{Inf}(T_1 \cap A_\delta) \wedge \text{Inf}(T_2 \cap A_\delta) \wedge \dots \wedge \text{Inf}(T_n \cap A_\delta).
 \end{equation*}
 If $Acc$ contains such sets that $T_i \subseteq T_j$ and $i \neq j$, we can remove $T_j$, because any run that visits $T_i$ infinitely often also visits $T_j$ infinitely often. Therefore, removing $T_j$ will not change the language.
-For each accepting SCC we can define a set of indices of useless acceptance sets 
+For each accepting SCC, we can define a set of indices of useless acceptance sets 
 \begin{equation*}
   \begin{aligned}
     U_k = &\{ j \in \{1, 2, \dots, n\} \mid \exists i \in \{1, 2, \dots, n\}, \\
@@ -274,7 +282,7 @@ The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \ac
 
 \chapter{SCC-based simplification of acceptance conditions of TELA}
 \label{chap:simpl_tela}
-This chapter presents the proposed simplification methods for TELA. The first section covers the removal of useless transitions from all acceptance sets. The second section describes the process of analyzing SCCs. The third section proposes several techniques that may remove useless acceptance sets from SCCs selected based on the analysis in Section \ref{sec:init_analysis}. Section four presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton. This section also covers how to identify and resolve possible conflicts caused by dependencies between disjuncts. Section five describes the necessary modifications to the simplified automaton that ensure its equivalence with the input automaton. 
+This chapter presents the proposed simplification methods for TELA. The first section covers the removal of useless transitions from all acceptance sets. The second section describes the process of analyzing SCCs. The third section proposes several techniques that may remove useless acceptance sets from SCCs selected based on the analysis in Section \ref{sec:init_analysis}. Section \ref{sec:merging_formulae} presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton. This section also covers how to identify and resolve possible conflicts caused by dependencies between disjuncts. Section \ref{sec:restore_equiv} describes the necessary modifications to the simplified automaton that ensure its equivalence with the input automaton. 
 
 In this chapter, let the input TELA have at least one acceptance set. Let the acceptance condition formula of the TELA be in disjunctive normal form (DNF). When referring to the whole automaton, we use notation $\mathcal{A}$. $Acc$ denotes the acceptance condition formula of the whole automaton. $\mathcal{A'}$ refers to a sub-automaton induced by an SCC of the original automaton, and $Acc'$ refers to the acceptance condition formula of $\mathcal{A'}$.
 
@@ -284,23 +292,15 @@ Because the formula is in DNF, we can represent it as
 \end{equation*}
 where each $d_k$ is a disjunct. Further, each such disjunct $d_k$ is represented as a set of conjuncts. For example, formula $Acc_e = (\text{Inf}(T_1) \wedge \text{Fin}(T_2)) \vee (\text{Inf}(T_3))$ is represented by $Acc_e = \{d_1, d_2\}$, where $d_1 = \{\text{Inf}(T_1), \text{Fin}(T_2)\}, d_2 = \{\text{Inf}(T_3)\}$. 
 
-Let $S$ be the set of states of an SCC. Then $A = \{t \in \delta \mid t^s \in S \wedge t^d \in S\}$ is the set of all transitions of that SCC. In other words, $A$ is a set of all transitions in $\mathcal{A'}$.
-
-\section{Removing useless transitions from acceptance sets}
-Any accepting run of $\mathcal{A}$ is always contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any run of $\mathcal{A}$. Therefore, such transition $t_{o}$ never changes the boolean value of set $T_i$ such that $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ in either of Inf$(T_i)$, Fin$(T_i)$.
-
-We can modify each acceptance set $T_i, i \in \{1, 2, \dots, n\}$ of $Acc$ as follows:
-\begin{equation*}
-  T_i = T_i \smallsetminus T_{o}.
-\end{equation*}
+Let $S$ be the set of states of $\mathcal{A'}$. Then $\delta_{A'} = \{t \in \delta \mid t^s \in S \wedge t^d \in S\}$ is the set of all transitions of that SCC. In other words, $A$ is a set of all transitions in $\mathcal{A'}$.
 
 \section{Initial analysis of SCCs}
 \label{sec:init_analysis}
-Before applying any simplification techniques, we first analyze each SCC and assign it one of the following attributes: \emph{always accepting}, \emph{never accepting}, \emph{maybe accepting}. The purpose of this classification is to help determine the necessary modifications when restoring equivalence with the original automaton as described in Section \ref{sec:restore_equiv}. 
+Before applying any simplification techniques, we first analyze each SCC and assign it one of the following attributes: \emph{always accepting}, \emph{never accepting}, \emph{maybe accepting}. The purpose of this classification is to determine the necessary modifications when restoring equivalence with the original automaton as described in Section \ref{sec:restore_equiv}. 
 
-Let $T_{all} = \{i \in \{1, 2, \dots, n\} \mid \forall t \in A \colon t \in T_i \}$ be the set of indices of acceptance sets that contain all transitions of the SCC.
+Let $T_{all} = \{i \in \{1, 2, \dots, n\} \mid \forall t \in \delta_{A'} \colon t \in T_i \}$ be the set of indices of acceptance sets that contain all transitions of the SCC.
 
-Let $T_{any} = \{i \in \{1, 2, \dots, n\} \mid \exists t \in A \colon t \in T_i \}$ be the set of indices of acceptance sets that contain at least one transition of the SCC.
+Let $T_{any} = \{i \in \{1, 2, \dots, n\} \mid \exists t \in \delta_{A'} \colon t \in T_i \}$ be the set of indices of acceptance sets that contain at least one transition of the SCC.
 
 Let $Acc'$ be a copy of $Acc$. Let $T_i, i \in \{1, 2, \dots, n\}$ be an acceptance set of $\mathcal{A}$. Now we perform the following substitutions for each disjunct $d_k$ in $Acc'$. TODO: prepis
 \begin{itemize}
@@ -314,50 +314,48 @@ Any disjunct in $Acc'$ that only contains \emph{true} is evaluated as \emph{true
 
 If any disjunct in $Acc'$ equals \emph{\{true\}}, then the SCC is \emph{always accepting}. If all disjuncts in $Acc'$ are equal to \emph{\{false\}}, then the SCC is \emph{never accepting}. If neither of the above conditions applies, then the SCC is \emph{maybe accepting}.
 
+TODO: priklad
+
+\section{Removing useless transitions from acceptance sets}
+Any accepting run of $\mathcal{A}$ has a suffix contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any accepting run of $\mathcal{A}$. Therefore, such transition $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ never changes the boolean value of Inf$(T_i)$, Fin$(T_i)$.
+
+We can modify each acceptance set $T_i, i \in \{1, 2, \dots, n\}$ of $Acc$ as follows:
+\begin{equation*}
+  T_i \coloneqq T_i \smallsetminus T_{o}.
+\end{equation*}
+
 \section{SCC simplifications}
-This section presents the simplification methods that can be applied to all SCCs, which are \emph{maybe accepting}. Using these methods on \emph{always accepting} or \emph{never accepting} SCCs is not necessary because the acceptance formulae of such SCCs can be replaced with \emph{true} or \emph{false}, respectively. 
+This section presents the simplification methods that can be applied to all SCCs that are \emph{maybe accepting}. Using these methods on \emph{always accepting} or \emph{never accepting} SCCs is not necessary because the acceptance formulae of such SCCs can be replaced with \emph{true} or \emph{false}, respectively. 
 
-Unlike TGBA, TELA have complex acceptance condition formulae. Therefore, to identify which acceptance sets are useless, we need to consider not only the relation between the transitions in these sets but also the specifics of their occurrence in the acceptance condition formula. 
+Unlike TGBA, TELA have complex acceptance formulae. Therefore, to identify which acceptance sets are useless, we need to consider not only the relation between the transitions in these sets but also the specifics of their occurrence in the acceptance condition formula. 
 
-For example, consider acceptance sets $T_1, T_2, T_3, T_1 \subseteq T_2$ and the formula $Acc_a = \text{Inf}(T_1) \wedge \text{Inf}(T_2)$. In this case, we can apply the simplifications described in Chapter \ref{chap:tgba_simpl} and remove $T_2$, because the form of $Acc_a$ is identical with the form of TGBA formula. However, in $Acc_b = \text{Inf}(T_1) \vee (\text{Inf}(T_2) \wedge \text{Fin}(T_3))$ removing $T_2$ could change the language. This example demonstrates that for SCC-based TELA simplifications, it is necessary to carefully define the requirements about the form of the acceptance condition formula.
+For example, consider acceptance sets $T_1, T_2, T_3$, where $T_1 \subseteq T_2$, and the formula $Acc_a = \text{Inf}(T_1) \wedge \text{Inf}(T_2)$. In this case, we can apply the simplifications described in Chapter \ref{chap:tgba_simpl} and remove $T_2$, because the form of $Acc_a$ is identical with the form of TGBA acceptance formula. However, in $Acc_b = \text{Inf}(T_1) \vee (\text{Inf}(T_2) \wedge \text{Fin}(T_3))$ removing $T_2$ could change the language. This example demonstrates that for SCC-based TELA simplifications, it is necessary to carefully define the requirements about the form of the acceptance condition formula.
 
 \subsection{Acceptance condition formula modifications}
 In the previous section, we proposed several substitutions used to analyze the SCCs. By using similar approach, we can remove useless disjuncts from $Acc$, and useless conjuncts from the remaining disjuncts.
 
-Let $T_i$ be an acceptance set that only appears in $Acc'$ as Fin$(T_i)$. If all transitions of $\mathcal{A'}$ belong to $T_i$, then during a run of $\mathcal{A'}$ at least one transition of $T_i$ is visited infinitely often. Therefore Fin$(T_i)$ is always \emph{false} for any run of $\mathcal{A'}$. Any disjunct $d_k$ of $Acc'$ that contains Fin$(T_i)$ can be removed without changing the language.
+Let $T_i$ be an acceptance set that appears in $Acc'$ in terms Fin$(T_i)$. If all transitions of $\mathcal{A'}$ belong to $T_i$, then during a run of $\mathcal{A'}$ at least one transition of $T_i$ is visited infinitely often. Therefore Fin$(T_i)$ is always \emph{false} for any run of $\mathcal{A'}$. Any disjunct $d_k$ of $Acc'$ that contains Fin$(T_i)$ can be removed without changing the language.
 
-More formally, if the following conditions hold
-\begin{itemize}
-  \item $i \in \{1,2, \dots, n\}$,
-  \item $k\in \{1,2, \dots, m\}$,
-  \item $T_i = A$,
-\end{itemize}
-then we can define the set of useless disjuncts as
+More formally, if $T_i \supseteq A$ holds for some $i \in \{1,2, \dots, n\}$, then we can define the set of useless disjuncts as
 \begin{equation*}
-  U = \{d_k \in Acc \mid \text{Fin}(T_i) \in d_k \}
+  U = \{d_k \in Acc' \mid \text{Fin}(T_i) \in d_k \}
 \end{equation*}
 and remove it from $Acc'$:
 \begin{equation*}
-  Acc' = Acc' \smallsetminus U.
+  Acc' \coloneqq Acc' \smallsetminus U.
 \end{equation*}
 
 TODO: priklad
 
-Let $T_i$ be an acceptance set that only appears in $Acc'$ as Inf$(T_i)$. If $T_i$ does not contain any transitions of $\mathcal{A'}$, then any disjunct $d_k$ in $Acc'$ that contains Inf$(T_i)$ can be removed. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ does not visit any transitions that belong to $T_i$; therefore, Inf$(T_i)$ is never satisfied.
+Let $T_i$ be an acceptance set that appears in $Acc'$ in terms Inf$(T_i)$. If $T_i$ does not contain any transitions of $\mathcal{A'}$, then any disjunct $d_k$ in $Acc'$ that contains Inf$(T_i)$ can be removed. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ does not visit any transitions that belong to $T_i$; therefore, Inf$(T_i)$ is never satisfied.
 
-Formally, if these conditions are met
-\begin{itemize}
-  \item $i \in \{1,2, \dots, n\}$,
-  \item $k\in \{1,2, \dots, m\}$,
-  \item $T_i \cap A = \emptyset$,
-\end{itemize}
-then 
+Formally, if $T_i \cap A = \emptyset$ holds for some $i \in \{1,2, \dots, n\}$, then 
 \begin{equation*}
-  U = \{d_k \in Acc \mid \text{Inf}(T_i) \in d_k \}
+  U = \{d_k \in Acc' \mid \text{Inf}(T_i) \in d_k \}
 \end{equation*}
 is the set of useless disjuncts that can be removed from $Acc'$:
 \begin{equation*}
-  Acc' = Acc' \smallsetminus U.
+  Acc' \coloneqq Acc' \smallsetminus U.
 \end{equation*}
 
 TODO: priklad
@@ -365,7 +363,7 @@ TODO: priklad
 If an acceptance set $T_i$ contains all transitions of the SCC, then Inf$(T_i)$ is always evaluated as \emph{true}. Therefore Inf$(T_i)$ can be removed from all disjuncts of $Acc'$ without changing the language. 
 In other words, we can define a set of useless conjuncts 
 \begin{equation*}
-  U = \{\text{Inf}(T_i) \mid i \in \{1,2, \dots, n\} \wedge T_i = A\}.
+  U = \{\text{Inf}(T_i) \mid i \in \{1,2, \dots, n\} \wedge T_i \supseteq \delta_{A'}\}.
 \end{equation*}
 Then we can remove the useless conjuncts in $U$ from each disjunct of $Acc'$ as follows:
 \begin{equation*}
@@ -375,7 +373,7 @@ Then we can remove the useless conjuncts in $U$ from each disjunct of $Acc'$ as 
 Similarly, Fin$(T_i)$ is always true if no transitions of the SCC belong to $T_i$. Therefore all such Fin$(T_i)$ can be removed from $Acc'$ without changing the language.
 The set of useless conjuncts can be defined as:
 \begin{equation*}
-  U = \{\text{Fin}(T_i) \mid i \in \{1,2, \dots, n\} \wedge T_i \cap A = \emptyset\}.
+  U = \{\text{Fin}(T_i) \mid i \in \{1,2, \dots, n\} \wedge T_i \cap \delta_{A'} = \emptyset\}.
 \end{equation*}
 Then the $Acc'$ can be modified as follows:
 \begin{equation*}
@@ -386,22 +384,22 @@ Let $d_k, d_l$ be disjuncts of $Acc'$ such that $d_k \subseteq d_l$. In this cas
 
 More formally, if we define the set of useless disjuncts as:
 \begin{equation*}
-  U = \{d_l \in Acc' \mid \exists d_k \in Acc' \colon d_k \subseteq d_l\},
+  U = \{d_l \in Acc' \mid \exists d_k \in Acc' \colon d_k \neq d_l \wedge d_k \subseteq d_l\},
 \end{equation*}
 then we may remove these useless disjuncts from $Acc'$ as follows:
 \begin{equation*}
-  Acc' = Acc' \smallsetminus U.
+  Acc' \coloneqq Acc' \smallsetminus U.
 \end{equation*}
 
 \subsection{Inclusion-based simplifications}
 %Inf & Inf
-We can modify the simplifications from Chapter \ref{chap:tgba_simpl} to make them viable for TELA by adding a prerequisite that demands a specific form of the acceptance formula. Let $T_1 \subseteq T_2$ be two distinct acceptance sets that appear in the acceptance condition formula only in terms Inf$(T_1)$ and Inf$(T_2)$. Let $Acc'$ be in such form that in any disjunct of the formula, either both Inf$(T_i), \text{Inf}(T_j)$ are present, or neither is present. If the required conditions are met, we may remove $T_2$ from the formula. 
+We can modify the simplifications from Chapter \ref{chap:tgba_simpl} to make them viable for TELA by adding a prerequisite that demands a specific form of the acceptance formula. Let $T_i \subseteq T_j$ be two distinct acceptance sets that appear in the acceptance condition formula in terms Inf$(T_i)$ and Inf$(T_j)$. Let $Acc'$ be in such form that in any disjunct of the formula, either both Inf$(T_i), \text{Inf}(T_j)$ are present, or neither is present. If the required conditions are met, we may remove $T_j$ from the formula. 
 
 More formally, if the following conditions hold
 \begin{itemize}
   \item $i, j \in \{1, 2, \dots, n\} \wedge i \neq j$,
-  \item $T_i \subsetneq T_j \vee (T_i = T_j \wedge j > i)$,
-  \item $\forall d_k \in Acc' \colon (\text{Inf}(T_i) \in d_k \Leftrightarrow \text{Inf}(T_j) \in d_k)$,
+  \item $T_i \cap \delta_{A'} \subsetneq T_j \cap \delta_{A'} \vee (T_i \cap \delta_{A'} = T_j \cap \delta_{A'} \wedge j > i)$,
+  \item $\forall d_k \in Acc' \colon (\text{Inf}(T_i) \in d_k \Leftarrow \text{Inf}(T_j) \in d_k)$,
 \end{itemize}
 then we can remove Inf$(T_j)$ from $Acc'$: 
 \begin{equation*}
@@ -411,13 +409,13 @@ then we can remove Inf$(T_j)$ from $Acc'$:
 TODO: priklad
 
 %Fin & Fin
-Let $T_1 \subseteq T_2$ be two distinct acceptance sets that only appear in $Acc'$ as Fin$(T_i)$ and Fin$(T_j)$. If each disjunct in $Acc'$ either contains both Fin$(T_i)$ and Fin$(T_j)$ or contains neither of them, then Fin$(T_i)$ can be removed from $Acc'$.  Removing Fin$(T_i)$ does not change the language, because when transitions in $T_j$ are visited finitely often during a run of $\mathcal{A'}$, then also transitions in $T_i$ are visited finitely often. 
+Let $T_i \subseteq T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Fin$(T_i)$ and Fin$(T_j)$. If each disjunct in $Acc'$ either contains both Fin$(T_i)$ and Fin$(T_j)$ or contains neither of them, then Fin$(T_i)$ can be removed from $Acc'$.  Removing Fin$(T_i)$ does not change the language, because when transitions in $T_j$ are visited finitely often during a run of $\mathcal{A'}$, then also transitions in $T_i$ are visited finitely often. 
 
 In other words, if these conditions are met:
 \begin{itemize}
   \item $i, j \in \{1,2, \dots, n\} \wedge i \neq j$,
-  \item $T_i \subsetneq T_j \vee (T_i = T_j \wedge j > i)$,
-  \item $\forall d_k \in Acc' \colon (\text{Fin}(T_i) \in d_k \Leftrightarrow \text{Fin}(T_j) \in d_k)$,
+  \item $T_i \cap \delta_{A'} \subsetneq T_j \cap \delta_{A'} \vee (T_i \cap \delta_{A'} = T_j \cap \delta_{A'} \wedge j > i)$,
+  \item $\forall d_k \in Acc' \colon (\text{Fin}(T_i) \in d_k \Rightarrow \text{Fin}(T_j) \in d_k)$,
 \end{itemize}
 then Fin$(T_i)$ can be removed from $Acc'$:
 \begin{equation*}
@@ -427,12 +425,12 @@ then Fin$(T_i)$ can be removed from $Acc'$:
 TODO: priklad
 
 %Inf & Fin
-Let $T_1 \subseteq T_2$ be two distinct acceptance sets that only appear in $Acc'$ as Inf$(T_i)$ and Fin$(T_j)$. If there is such disjunct $d_k$ of $Acc'$, that it contains both Inf$(T_i)$ and Fin$(T_j)$, then $d_k$ can be removed from $Acc'$. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ that visits $T_j$ finitely often cannot visit any transition in $T_i$ infinitely often. Therefore $d_k$ is evaluated as \emph{false} for any run of $\mathcal{A'}$. 
+Let $T_i \subseteq T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Inf$(T_i)$ and Fin$(T_j)$. If there is such disjunct $d_k$ of $Acc'$, that it contains both Inf$(T_i)$ and Fin$(T_j)$, then $d_k$ can be removed from $Acc'$. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ that visits $T_j$ finitely often cannot visit any transition in $T_i$ infinitely often. Therefore $d_k$ is evaluated as \emph{false} for any run of $\mathcal{A'}$. 
 
 If the following conditions hold
 \begin{itemize}
   \item $i, j \in \{1, 2, \dots, n\} \wedge i \neq j$,
-  \item $T_i \subsetneq T_j \vee (T_i = T_j \wedge j > i)$,
+  \item $T_i \cap \delta_{A'} \subsetneq T_j \cap \delta_{A'} \vee (T_i \cap \delta_{A'} = T_j \cap \delta_{A'} \wedge j > i)$,
 \end{itemize}
 then the we can define the set of useless disjuncts as:
 \begin{equation*}
@@ -446,12 +444,12 @@ $Acc'$ without these useless sets is defined as:
 TODO: priklad
 
 \subsection{Simplification of complementary acceptance sets}
-Let $T_i$ and $T_j$ be two distinct acceptance sets that appear in $Acc'$ only as Fin$(T_i)$ and Inf$(T_j)$. Let $T_i$ and $T_j$ be complementary. If each $d_k$ of $Acc'$ that contains Inf$(T_j)$ also contains Fin$(T_i)$, then we can remove Inf$(T_j)$ without changing the language. If a run of $\mathcal{A'}$ is contained in the SCC and all transitions in $T_i$ are visited finitely often, then necessarily at least one transition in $T_j$ is visited infinitely often. Therefore keeping only the conjunct Fin$(T_i)$ in $d_k$ is sufficient. 
+Let $T_i$ and $T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Fin$(T_i)$ and Inf$(T_j)$. Let $T_i$ and $T_j$ be complementary. If each $d_k$ of $Acc'$ that contains Inf$(T_j)$ also contains Fin$(T_i)$, then we can remove Inf$(T_j)$ without changing the language. If a run of $\mathcal{A'}$ is contained in the SCC and all transitions in $T_i$ are visited finitely often, then necessarily at least one transition in $T_j$ is visited infinitely often. Therefore keeping only the conjunct Fin$(T_i)$ in $d_k$ is sufficient. 
 
 More formally, if these conditions are met:
 \begin{itemize}
   \item $i, j \in \{1, 2, \dots, n\} \wedge i \neq j$,
-  \item $\exists T_i, T_j \colon A \smallsetminus T_i = T_j$,
+  \item $\exists T_i, T_j \colon \cap \delta_{A'} \smallsetminus T_i = T_j$,
   \item $\forall d_k \in Acc' \colon \text{Inf}(T_j) \in d_k \Rightarrow \text{Fin}(T_j) \in d_k$,
 \end{itemize}
 then Inf$(T_j)$ can be removed from $Acc'$:
@@ -460,7 +458,7 @@ then Inf$(T_j)$ can be removed from $Acc'$:
 \end{equation*}
 
 \subsection{Combining Fin conjuncts}
-If $\mathcal{A'}$ has such acceptance sets $T_i, T_j$ and $i \neq j$, that both sets only appear in $Acc'$ as Fin$(T_i)$ and Fin$(T_j)$ and each disjunct of $Acc'$ either contains both of them or neither of them, then we can replace these sets by a new acceptance set. The new acceptance set $T_x$ contains all transitions from both $T_i$ and $T_j$. Fin$(T_i)$ and Fin$(T_j)$ can be removed from all disjuncts, that they belong to, and Fin$(T_x)$ is added to those disjuncts. This modification does not change the language, because Fin$(T_x)$ is equivalent to the expression $(\text{Fin}(T_i) \wedge \text{Fin}(T_j))$, if $T_x$ and $(T_i \cup T_j)$ are equal sets. Either expression is satisfied only if all transitions in $T_x = (T_i \cup T_j)$ are visited finitely often.
+If $\mathcal{A'}$ has such acceptance sets $T_i, T_j$ and $i \neq j$, that both sets only appear in $Acc'$ in terms Fin$(T_i)$ and Fin$(T_j)$ and each disjunct of $Acc'$ either contains both of them or neither of them, then we can replace these sets by a new acceptance set. The new acceptance set $T_x$ contains all transitions from both $T_i$ and $T_j$. Fin$(T_i)$ and Fin$(T_j)$ can be removed from all disjuncts, that they belong to, and Fin$(T_x)$ is added to those disjuncts. This modification does not change the language, because Fin$(T_x)$ is equivalent to the expression $(\text{Fin}(T_i) \wedge \text{Fin}(T_j))$, if $T_x = T_i \cup T_j$. Either expression is satisfied only if all transitions in $T_x = T_i \cup T_j$ are visited finitely often.
 
 In other words, if the following conditions are met
 \begin{itemize}
@@ -473,6 +471,7 @@ then we can define a new acceptance set $T_x = (T_i \cup T_j)$ and modify $Acc'$
 \end{align*}
 
 \section{Merging acceptance condition formulae of all SCCs}
+\label{sec:merging_formulae}
 After applying simplification techniques from the previous chapter, each SCC has its own acceptance formula. This section proposes one possible approach to merging acceptance condition formulae. The resulting formula is the acceptance condition formula of the simplified automaton $\mathcal{A}_s$.
 
 This method only processes formulae of \emph{maybe accepting} SCCs. The formulae of \emph{never accepting} and \emph{always accepting} SCCs are equivalent to expressions \emph{false} and \emph{true}, respectively. These expressions can merge with any formula without it requiring any modifications. Therefore, it is not necessary to include them in the merging process. 
@@ -547,15 +546,17 @@ To restore the equivalence with the original automaton in \emph{never accepting}
 \end{equation*}
 where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is not satisfied because at least one transition of $T_i$ is visited infinitely often; therefore, Fin$(T_i)$ is evaluated as \emph{false}.
 
-For all \emph{always accepting} SCCs, we need to ensure that at least one disjunct of $Acc_s$ is true for any run of $\mathcal{A}_s$ that is contained within such SCC. If there is a disjunct in $Acc_s$ that only contains Fin$(T_i)$, where $T_i$ is any acceptance set of $Acc_s$, then the requirement is satisfied. Otherwise, we choose a disjunct that contains the fewest Inf conjuncts and modify the acceptance sets of $Acc_s$ so that these conjuncts are true for any run of $Acc_s$ that is contained within the \emph{always accepting} SCC. All acceptance sets $T_i$ that appear in that disjunct in conjuncts Inf$(T_i)$ need to be modified as follows:
+For all \emph{always accepting} SCCs, we need to ensure that at least one disjunct of $Acc_s$ is true for any run of $\mathcal{A}_s$ that is contained within such SCC. If there is a disjunct in $Acc_s$ that only contains Fin$(T_i)$, where $T_i$ is any acceptance set of $Acc_s$, then the requirement is satisfied. Otherwise, we choose a disjunct that contains the fewest Inf conjuncts and modify the acceptance sets of $Acc_s$ so that these conjuncts are true for any run of $Acc_s$ that is contained within the \emph{always accepting} SCC. All acceptance sets $T_i$ that appear in the selected disjunct in conjuncts Inf$(T_i)$ need to be modified as follows:
 \begin{equation*}
   T_i = T_i \cup A_{Scc},
 \end{equation*}
-where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is evaluated as \emph{true} because for each acceptance set, $T_i$ that appears in the disjunct as Inf$(T_i)$, at least one transition is visited infinitely often; therefore, any conjuncts in the form of Fin$(T_i)$, where $T_i$ is any acceptance set of $A_s$, do not affect the satisfiability of the disjunct, because any such set $T_i$ does not contain any transitions of the SCC.
+where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is evaluated as \emph{true} because for each acceptance set $T_i$, that appears in the disjunct as Inf$(T_i)$, at least one transition is visited infinitely often. Therefore, any conjuncts in the form of Fin$(T_i)$, do not affect the satisfiability of the disjunct, because any such set $T_i$ does not contain any transitions of the SCC.
 
 \chapter{Implementation}
 
 \chapter{Experimental Evaluation}
+
+generovani ltl: randltl -n1000 5 -output=ltl.txt
 
 \chapter{Conclusion}
 
