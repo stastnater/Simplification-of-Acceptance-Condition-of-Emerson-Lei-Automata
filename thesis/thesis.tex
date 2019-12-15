@@ -60,7 +60,7 @@
     abstract      = {%
     This thesis proposes SCC-based simplifications of acceptance condition formulae for transition-based Emerson-Lei automata (TELA). These simplifications aim to reduce the number of unique acceptance sets of the automaton and possibly decrease the length of the acceptance formula. The thesis includes an experimental implementation of the proposed method and experimental evaluation of the implemented tool. 
     },
-    thanks        = {Many thanks to Jan Strejček for his all his advice, patience. I would also like to thank Juraj Major TODO:
+    thanks        = {Many thanks to Jan Strejček for his all his advice and patience during the thesis work. I would like to thank Juraj Major for his kind help and I would also like to thank my family and friends for their support.
     },
     bib           = bibliography.bib,
 }
@@ -143,7 +143,9 @@
 \newcommand{\accmarkblue}{\begin{tikzpicture} \node[accset, collacc0] {}; \end{tikzpicture}}
 \newcommand{\accmarkmag}{\begin{tikzpicture} \node[accset, collacc1] {}; \end{tikzpicture}}
 \newcommand{\accmarkor}{\begin{tikzpicture} \node[accset, collacc2] {}; \end{tikzpicture}}
-\newcommand{\accsquare}{\begin{tikzpicture} \node[accset, collacc0] {}; \end{tikzpicture}}
+\newcommand{\accsquaregr}{\begin{tikzpicture} \node[accsquare, collacc3] {}; \end{tikzpicture}}
+\newcommand{\accsquareblue}{\begin{tikzpicture} \node[accsquare, collacc0] {}; \end{tikzpicture}}
+\newcommand{\accsquaremag}{\begin{tikzpicture} \node[accsquare, collacc1] {}; \end{tikzpicture}}
 
 \chapter{Introduction}
 Our society has become heavily reliant on computer systems. Unexpected behavior of software often results merely in minor inconvenience. However is some cases, it might pose a threat to human safety. Therefore it is crucial to have the ability to verify if the software in question behaves as intended. 
@@ -171,7 +173,7 @@ A transition-based Emerson-Lei automaton, as defined by Bloemen et al. \cite{blo
   \item $Acc$ is the acceptance condition formula, defined as a Boolean formula over terms of the form Fin$(T_i)$ or Inf$(T_i)$ for any acceptance set $T_i \subseteq \delta, T_i \in \{1, 2, \dots, n\}$. 
 \end{itemize}
 
-In figures, an acceptance set is represented by acceptance marks (for example \accmarkblue) placed on the transitions which belong to that set (as seen, for example, in Figure \ref{fig:tgba}). 
+In figures, an acceptance set is represented by acceptance marks (for example \accmarkblue) placed on the transitions which belong to that set (as seen, for example, in Figure \ref{fig:tgba}). By convention, circle marks denote acceptance sets that appear in Inf-terms and square marks denote sets that appear in Fin-terms.
 
 For a transition $t = (t^s, t^l, t^d) \in \delta$, $t^s$ denotes its source, $t^l$ its label and $t^d$ its destination.
 
@@ -283,7 +285,9 @@ The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \ac
 \label{chap:simpl_tela}
 This chapter presents the proposed simplification methods for TELA. The first section covers the removal of useless transitions from all acceptance sets. The second section describes the process of analyzing SCCs. The third section proposes several techniques that may remove useless acceptance sets from SCCs selected based on the analysis in Section \ref{sec:init_analysis}. Section \ref{sec:merging_formulae} presents the method used for merging the separate acceptance condition formulae of all SCCs into one. The resulting formula is the acceptance condition of the simplified automaton. This section also covers how to identify and resolve possible conflicts caused by dependencies between disjuncts. Section \ref{sec:restore_equiv} describes the necessary modifications to the simplified automaton that ensure its equivalence with the input automaton. 
 
-In this chapter, let the input TELA have at least one acceptance set. Let the acceptance condition formula of the TELA be in disjunctive normal form (DNF). When referring to the whole automaton, we use notation $\mathcal{A}$. $Acc$ denotes the acceptance condition formula of the whole automaton. $\mathcal{A'}$ refers to a sub-automaton induced by an SCC of the original automaton, and $Acc'$ refers to the acceptance condition formula of $\mathcal{A'}$.
+In this chapter, let the input TELA have at least one acceptance set. Let the acceptance condition formula of the TELA be in disjunctive normal form (DNF). When referring to the whole automaton, we use the notation $\mathcal{A}$. $Acc$ denotes the acceptance condition formula of the whole automaton. $\mathcal{A'}$ refers to an SCC of the original automaton, run of $\mathcal{A'}$ denotes the run of $\mathcal{A}$ such that the suffix of that run is contained within $\mathcal{A'}$. $Acc'$ refers to the acceptance condition formula of $\mathcal{A'}$.
+
+If there occurs a situation such that we remove the only occurrence of an acceptance set $T_i$ in some $Acc'$, then we remove the marks that denote $T_i$ from the transitions of $\mathcal{A'}$. In other words, if some $Acc'$ no longer contains $T_i$ in any terms, then the marks denoting $T_i$ are not needed in $\mathcal{A'}$.
 
 Because the formula is in DNF, we can represent it as 
 \begin{equation*}
@@ -295,7 +299,7 @@ Let $S$ be the set of states of $\mathcal{A'}$. Then $\delta_{A'} = \{t \in \del
 
 \section{Initial analysis of SCCs}
 \label{sec:init_analysis}
-Before applying any simplification techniques, we first analyze each SCC and assign it one of the following attributes: \emph{always accepting}, \emph{never accepting}, \emph{maybe accepting}. The purpose of this classification is to determine the necessary modifications when restoring equivalence with the original automaton as described in Section \ref{sec:restore_equiv}. 
+Before applying any simplification techniques, we first analyze each SCC and assign it one of the following attributes: \emph{always accepting}, \emph{never accepting}, \emph{maybe accepting}. The purpose of this classification is to determine the necessary modifications when restoring equivalence with the original automaton, as described in Section \ref{sec:restore_equiv}. 
 
 Let $T_{all} = \{i \in \{1, 2, \dots, n\} \mid \forall t \in \delta_{A'} \colon t \in T_i \}$ be the set of indices of acceptance sets that contain all transitions of the SCC.
 
@@ -313,41 +317,78 @@ Any disjunct in $Acc'$ that only contains \emph{true} is evaluated as \emph{true
 
 If any disjunct in $Acc'$ equals \emph{\{true\}}, then the SCC is \emph{always accepting}. If all disjuncts in $Acc'$ are equal to \emph{\{false\}}, then the SCC is \emph{never accepting}. If neither of the above conditions applies, then the SCC is \emph{maybe accepting}.
 
-TODO:
+In Figure \ref{fig:analysis}, there are examples of SCCs and the results of their analysis.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (0, 2.5) {Inf\accmarkblue};
+      \node[state, initial]   (0) at (0,0) {};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$a$} node[accset, collacc0] {} (0)
+              (0) edge[loop below]  node[below] {$b$} node[accset, collacc0] {} (0)
+              (0) edge[loop right]  node[right] {$\overline{a}$} node[accset, collacc0] {} (0);            
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (0, 2.5) {Inf\accmarkblue$ \wedge $Fin\accsquaremag}; 
+    \node[state, initial]   (0) at (0,0) {};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$a$} node[accset, collacc0] {} (0)
+            (0) edge[loop below]  node[below] {$b$} (0)
+            (0) edge[loop right]  node[right] {$\overline{b}$} (0);            
+\end{tikzpicture}
+\begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+  \node[flabel] (pigfq) at (0, 2.5) {Inf\accmarkblue$\vee$Fin\accmarkmag}; 
+  \node[state, initial]   (0) at (0,0) {};
+
+  \path[->, very thick]
+          (0) edge[loop above]  node[above] {$a$} node[accsquare, collacc1] {} (0)
+          (0) edge[loop below]  node[below] {$b$} node[accsquare, collacc1] {} (0);  
+\end{tikzpicture}
+  \caption{Examples of SCC analysis: SCC on the left is \emph{always accepting}. SCC in the middle is \emph{maybe accepting}, but Fin\protect \accsquaremag \ can be removed from the acceptance formula. SCC on the right is \emph{never accepting}. Both Inf\protect \accmarkblue \ and Fin\protect \accsquaremag \ are evaluated as \emph{false}.}
+  \label{fig:analysis}
+\end{figure}
 
 \section{Removing useless transitions from acceptance sets}
-Any accepting run of $\mathcal{A}$ has a suffix contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any accepting run of $\mathcal{A}$. Therefore, such transition $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ never changes the boolean value of Inf$(T_i)$, Fin$(T_i)$.
+\label{sec:remove_out_transition}
+Any accepting run of $\mathcal{A}$ has a suffix contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any accepting run of $\mathcal{A}$. Therefore, including or removing such transition $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ never changes the boolean value of Inf$(T_i)$, Fin$(T_i)$.
 
 We can modify each acceptance set $T_i, i \in \{1, 2, \dots, n\}$ of $Acc$ as follows:
 \begin{equation*}
   T_i \coloneqq T_i \smallsetminus T_{o}.
 \end{equation*}
 
-\begin{figure}[h] %TODO:
+Example of this simplification is in Figure \ref{fig:remove_useless}.
+
+\begin{figure}[h]
   \centering
   \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (0, 2) {Inf\accmarkblue$\wedge$Fin\accsquaremag};
       \node[state, initial]   (0) at (0,0) {0};
       \node[state]            (1) at (2.5, 0) {1};
 
       \path[->, very thick]
-              (0) edge[]  node [above] {$a$} node[accset, collacc0, pos=0.30] {} node[accset, collacc1, pos=0.70] {} (1) 
+              (0) edge[]  node [above] {$a$} node[accset, collacc0, pos=0.30] {} node[accsquare, collacc1, pos=0.70] {} (1) 
               (1) edge[loop above]  node[above] {$\overline{b}$} node[accset, collacc0] {} (1)
-              (1) edge[loop below]  node[below] {$b$} node[accset, collacc1] {} (1)
+              (1) edge[loop below]  node[below] {$b$} node[accsquare, collacc1] {} (1)
               (1) edge[loop right]  node[right] {$\overline{a}$} (1);
               
   \end{tikzpicture}
   \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (0, 2) {Inf\accmarkblue$\wedge$Fin\accsquaremag};
     \node[state, initial]   (0) at (0,0) {0};
     \node[state]            (1) at (2.5, 0) {1};
 
     \path[->, very thick]
             (0) edge[]  node [above] {$a$} (1) 
             (1) edge[loop above]  node[above] {$\overline{b}$} node[accset, collacc0] {} (1)
-            (1) edge[loop below]  node[below] {$b$} node[accset, collacc1] {} (1)
+            (1) edge[loop below]  node[below] {$b$} node[accsquare, collacc1] {} (1)
             (1) edge[loop right]  node[right] {$\overline{a}$} (1);
             
 \end{tikzpicture}
-  \caption{TELA}
+  \caption{TELA before (left) and after (right) applying modification from Section \ref{sec:remove_out_transition}.}
   \label{fig:remove_useless}
 \end{figure}
 
@@ -360,7 +401,7 @@ Unlike TGBA, TELA have complex acceptance formulae. Therefore, to identify which
 For example, consider acceptance sets $T_1, T_2, T_3$, where $T_1 \subseteq T_2$, and the formula $Acc_a = \text{Inf}(T_1) \wedge \text{Inf}(T_2)$. In this case, we can apply the simplifications described in Chapter \ref{chap:tgba_simpl} and remove $T_2$, because the form of $Acc_a$ is identical with the form of TGBA acceptance formula. However, in $Acc_b = \text{Inf}(T_1) \vee (\text{Inf}(T_2) \wedge \text{Fin}(T_3))$ removing $T_2$ could change the language. This example demonstrates that for SCC-based TELA simplifications, it is necessary to carefully define the requirements about the form of the acceptance condition formula.
 
 \subsection{Acceptance condition formula modifications}
-In the previous section, we proposed several substitutions used to analyze the SCCs. By using similar approach, we can remove useless disjuncts from $Acc$, and useless conjuncts from the remaining disjuncts.
+In the previous section, we proposed several substitutions used to analyze the SCCs. By using a similar approach, we can remove useless disjuncts from $Acc$, and useless conjuncts from the remaining disjuncts.
 
 Let $T_i$ be an acceptance set that appears in $Acc'$ in terms Fin$(T_i)$. If all transitions of $\mathcal{A'}$ belong to $T_i$, then during a run of $\mathcal{A'}$ at least one transition of $T_i$ is visited infinitely often. Therefore Fin$(T_i)$ is always \emph{false} for any run of $\mathcal{A'}$. Any disjunct $d_k$ of $Acc'$ that contains Fin$(T_i)$ can be removed without changing the language.
 
@@ -373,7 +414,33 @@ and remove it from $Acc'$:
   Acc' \coloneqq Acc' \smallsetminus U.
 \end{equation*}
 
-TODO: priklad
+Figure \ref{fig:rem_dis_fin} shows an example of this modification.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Inf\accmarkblue$\vee$Fin\accsquaremag};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{b}$} node[accsquare, collacc1] {} (0)
+              (0) edge[loop below]  node[below] {$b$} node[accset, collacc0, pos=0.15] {} node[accsquare, collacc1] {} (0)
+              (0) edge[loop right]  node[right] {$a$} node[accsquare, collacc1] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Inf\accmarkblue}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{b}$} (0)
+            (0) edge[loop below]  node[below] {$b$} node[accset, collacc0] {}(0)
+            (0) edge[loop right]  node[right] {$a$} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) removing useless disjuncts.}
+  \label{fig:rem_dis_fin}
+\end{figure}
 
 Let $T_i$ be an acceptance set that appears in $Acc'$ in terms Inf$(T_i)$. If $T_i$ does not contain any transitions of $\mathcal{A'}$, then any disjunct $d_k$ in $Acc'$ that contains Inf$(T_i)$ can be removed. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ does not visit any transitions that belong to $T_i$; therefore, Inf$(T_i)$ is never satisfied.
 
@@ -386,7 +453,33 @@ is the set of useless disjuncts that can be removed from $Acc'$:
   Acc' \coloneqq Acc' \smallsetminus U.
 \end{equation*}
 
-TODO: priklad
+Example of this modification is in Figure \ref{fig:rem_dis_inf}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Inf\accmarkblue$\vee$Fin\accsquaremag};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{b}$} node[accset, collacc0] {} node[accsquare, collacc1, pos=0.15] {} (0)
+              (0) edge[loop below]  node[below] {$b$} node[accset, collacc0] {} (0)
+              (0) edge[loop right]  node[right] {$a$} node[accset, collacc0] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Fin\accsquaremag}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{b}$} node[accsquare, collacc1] {} (0)
+            (0) edge[loop below]  node[below] {$b$} (0)
+            (0) edge[loop right]  node[right] {$a$} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) removing useless disjuncts.}
+  \label{fig:rem_dis_inf}
+\end{figure}
 
 If an acceptance set $T_i$ contains all transitions of the SCC, then Inf$(T_i)$ is always evaluated as \emph{true}. Therefore Inf$(T_i)$ can be removed from all disjuncts of $Acc'$ without changing the language. 
 In other words, we can define a set of useless conjuncts 
@@ -434,7 +527,33 @@ then we can remove Inf$(T_j)$ from $Acc'$:
   Acc' = \{d_1 \smallsetminus \{\text{Inf}(T_j)\}, d_2 \smallsetminus \{\text{Inf}(T_j)\}, \dots, d_m \smallsetminus \{\text{Inf}(T_j)\}\}.
 \end{equation*} 
 
-TODO: priklad
+Example of this simplification is in Figure \ref{fig:inclusion_infs}.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Inf\accmarkblue$ \wedge $Inf\accmarkmag};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{a}$} node[accset, collacc0] {} node[accset, collacc1, pos=0.15] {} (0)
+              (0) edge[loop below]  node[below] {$b$} node[accset, collacc0] {} (0)
+              (0) edge[loop right]  node[right] {$a$} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Inf\accmarkmag}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{a}$} node[accset, collacc1] {} (0)
+            (0) edge[loop below]  node[below] {$b$} (0)
+            (0) edge[loop right]  node[right] {$a$} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) using inclusion based simplification.}
+  \label{fig:inclusion_infs}
+\end{figure}
 
 %Fin & Fin
 Let $T_i \subseteq T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Fin$(T_i)$ and Fin$(T_j)$. If each disjunct in $Acc'$ either contains both Fin$(T_i)$ and Fin$(T_j)$ or contains neither of them, then Fin$(T_i)$ can be removed from $Acc'$.  Removing Fin$(T_i)$ does not change the language, because when transitions in $T_j$ are visited finitely often during a run of $\mathcal{A'}$, then also transitions in $T_i$ are visited finitely often. 
@@ -450,7 +569,33 @@ then Fin$(T_i)$ can be removed from $Acc'$:
   Acc' = \{d_1 \smallsetminus \{\text{Fin}(T_i)\}, d_2 \smallsetminus \{\text{Fin}(T_i)\}, \dots, d_m \smallsetminus \{\text{Fin}(T_i)\}\}.
 \end{equation*}
 
-TODO: priklad
+See an example of this simplification in Figure \ref{fig:inclusion_fins}.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Fin\accsquareblue$ \wedge $Fin\accsquaremag};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{b}$} (0)
+              (0) edge[loop below]  node[below] {$a$} node[accsquare, collacc0] {} (0)
+              (0) edge[loop right]  node[right] {$b$} node[accsquare, collacc0] {} node[accsquare, collacc1, pos=0.15] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Fin\accsquareblue}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{b}$} (0)
+            (0) edge[loop below]  node[below] {$a$} node[accsquare, collacc0] {} (0)
+            (0) edge[loop right]  node[right] {$b$} node[accsquare, collacc0] {} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) using inclusion based simplification.}
+  \label{fig:inclusion_fins}
+\end{figure}
 
 %Inf & Fin
 Let $T_i \subseteq T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Inf$(T_i)$ and Fin$(T_j)$. If there is such disjunct $d_k$ of $Acc'$, that it contains both Inf$(T_i)$ and Fin$(T_j)$, then $d_k$ can be removed from $Acc'$. Removing $d_k$ does not change the language, because any run of $\mathcal{A'}$ that visits $T_j$ finitely often cannot visit any transition in $T_i$ infinitely often. Therefore $d_k$ is evaluated as \emph{false} for any run of $\mathcal{A'}$. 
@@ -469,7 +614,33 @@ $Acc'$ without these useless sets is defined as:
   Acc' = Acc' \smallsetminus U.
 \end{equation*}
 
-TODO: priklad
+Example of this simplification is shown in Figure \ref{fig:inclusion_remdis}.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Inf\accmarkor$\vee$(Fin\accsquaremag $\wedge$ Inf\accmarkblue)};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{a}$} node[accsquare, collacc1] {} (0) 
+              (0) edge[loop below]  node[below] {$a$} node[accset, collacc0] {} node[accsquare, collacc1, pos=0.15] {} (0)
+              (0) edge[loop right]  node[right] {$b$} node[accset, collacc2] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Inf\accmarkor}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{a}$} (0)
+            (0) edge[loop below]  node[below] {$a$} (0)
+            (0) edge[loop right]  node[right] {$b$} node[accset, collacc2] {} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) removing useless disjuncts based on inclusion od acceptance sets.}
+  \label{fig:inclusion_remdis}
+\end{figure}
 
 \subsection{Simplification of complementary acceptance sets}
 Let $T_i$ and $T_j$ be two distinct acceptance sets that appear in $Acc'$ in terms Fin$(T_i)$ and Inf$(T_j)$. Let $T_i$ and $T_j$ be complementary. If each $d_k$ of $Acc'$ that contains Inf$(T_j)$ also contains Fin$(T_i)$, then we can remove Inf$(T_j)$ without changing the language. If a run of $\mathcal{A'}$ is contained in the SCC and all transitions in $T_i$ are visited finitely often, then necessarily at least one transition in $T_j$ is visited infinitely often. Therefore keeping only the conjunct Fin$(T_i)$ in $d_k$ is sufficient. 
@@ -485,7 +656,36 @@ then Inf$(T_j)$ can be removed from $Acc'$:
   Acc' = \{d_1 \smallsetminus \{\text{Inf}(T_j)\}, d_2 \smallsetminus \{\text{Inf}(T_j)\}, \dots, d_m \smallsetminus \{\text{Inf}(T_j)\} \}
 \end{equation*}
 
+In Figure \ref{fig:complementary}, there is an example of this simplification.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-2.5, 1) {Fin\accsquaremag $\wedge$ Inf\accmarkblue};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{a}$} node[accsquare, collacc1] {} (0) 
+              (0) edge[loop below]  node[below] {$b$} node[accset, collacc0] {} (0)
+              (0) edge[loop right]  node[right] {$a$} node[accset, collacc0] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Fin\accsquaremag}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{a}$} node[accsquare, collacc1] {} (0)
+            (0) edge[loop below]  node[below] {$b$} (0)
+            (0) edge[loop right]  node[right] {$a$} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) simplification of complementary sets.}
+  \label{fig:complementary}
+\end{figure}
+
 \subsection{Combining Fin conjuncts}
+\label{subsec:combine_fins}
 If $\mathcal{A'}$ has such acceptance sets $T_i, T_j$ and $i \neq j$, that both sets appear in $Acc'$ in terms Fin$(T_i)$ and Fin$(T_j)$ and each disjunct of $Acc'$ either contains both of them or neither of them, then we can replace these sets by a new acceptance set. The new acceptance set $T_x$ contains all transitions from both $T_i$ and $T_j$. Fin$(T_i)$ and Fin$(T_j)$ can be removed from all disjuncts, that they belong to, and Fin$(T_x)$ is added to those disjuncts. This modification does not change the language, because Fin$(T_x)$ is equivalent to the expression $(\text{Fin}(T_i) \wedge \text{Fin}(T_j))$, if $T_x = T_i \cup T_j$. Either expression is satisfied only if all transitions in $T_x = T_i \cup T_j$ are visited finitely often.
 
 In other words, if the following conditions are met
@@ -498,11 +698,39 @@ then we can define a new acceptance set $T_x = (T_i \cup T_j)$ and modify $Acc'$
   Acc' =& \{d_k \in Acc' \mid \text{Fin}(T_i) \notin d_k\} \cup \\ &\{(d_k \smallsetminus \{\text{Fin}(T_i), \text{Fin}(T_j)\}) \cup \{\text{Fin}(T_x)\} \mid \text{Fin}(T_i) \in d_k\}.
 \end{align*}
 
+In Figure \ref{fig:combine_fins}, there is an example of this simplification.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[flabel] (pigfq) at (-3, 3) {(Fin\accsquareblue $\wedge$ Fin\accsquaremag $\wedge$ Inf\accmarkor)};
+      \node[state, initial]   (0) at (0,0) {0};
+
+      \path[->, very thick]               
+              (0) edge[loop above]  node[above] {$\overline{b}$} node[accsquare, collacc1] {} (0) 
+              (0) edge[loop below]  node[below] {$\overline{a}$} node[accsquare, collacc0] {} node[accset, collacc2] {} (0)
+              (0) edge[loop right]  node[right] {$b$} node[accset, collacc2] {} (0);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[flabel] (pigfq) at (2, 1) {Fin\accsquaregr $\wedge$ Inf\accmarkor}; 
+    \node[state, initial]   (0) at (0,0) {0};
+
+    \path[->, very thick]
+            (0) edge[loop above]  node[above] {$\overline{b}$} node[accsquare, collacc3] {} (0)
+            (0) edge[loop below]  node[below] {$\overline{a}$} node[accsquare, collacc3] {} (0)
+            (0) edge[loop right]  node[right] {$b$} node[accset, collacc2] {} (0);
+            
+\end{tikzpicture}
+  \caption{TELA before (left) and after (right) combining sets that appear in Fin-terms as described in \protect \ref{subsec:combine_fins}.}
+  \label{fig:combine_fins}
+\end{figure}
+
 \section{Merging acceptance condition formulae of all SCCs}
 \label{sec:merging_formulae}
 After applying simplification techniques from the previous chapter, each SCC has its own acceptance formula. This section proposes one possible approach to merging acceptance condition formulae. The resulting formula is the acceptance condition formula of the simplified automaton $\mathcal{A}_s$.
 
-This method only processes formulae of \emph{maybe accepting} SCCs. The formulae of \emph{never accepting} and \emph{always accepting} SCCs are equivalent to expressions \emph{false} and \emph{true}, respectively. These expressions can merge with any formula without it requiring any modifications. Therefore, it is not necessary to include them in the merging process. 
+This method only processes the formulae of \emph{maybe accepting} SCCs. The formulae of \emph{never accepting} and \emph{always accepting} SCCs are equivalent to expressions \emph{false} and \emph{true}, respectively. These expressions can merge with any formula without it requiring any modifications. Therefore, it is not necessary to include them in the merging process. 
 
 Let $C = \{Scc_1, Scc_2, \dots, Scc_z\}$ be the set of all \emph{maybe accepting} SCCs of $\mathcal{A}$. The set of acceptance condition formulae of these SCCs is $F = \{Acc_1, Acc_2, \dots, Acc_z\}$. Let $F$ be a sorted set with the formulae ordered by their cardinality in descending order, meaning that the first is a formula with the maximal number of disjuncts. Let $C$ be sorted so that the SCCs match the order of their respective formulae in $F$. In other words, the first formula in $F$, $Acc_1$, belongs to $Scc_1$.
 
@@ -510,12 +738,12 @@ We select $Acc_1$, the formula with the maximal cardinality, to be the base for 
 
 Dependency occurs when a formula contains the same conjunct in two or more disjuncts. In the process of merging formulae, conflicts caused by dependencies may arise and lead to undesired changes in the language accepted by the automaton. Resolving these conflicts is described in Subsection \ref{subsec:resolve_conflicts}. 
 
-\subsection{Merging acceptace condition formulae}
-Merging formulae consists of merging each formula in $C$ with $Acc_s$. When the process is complete the modified $Acc_s$ become the acceptance formula of the whole automaton $\mathcal{A}_s$.
+\subsection{Merging acceptance condition formulae}
+Merging formulae consists of merging each formula in $C$ with $Acc_s$. When the process is complete, the modified $Acc_s$ becomes the acceptance formula of the whole automaton $\mathcal{A}_s$.
 
 Two formulae are merged by pairing their disjuncts and then pairing the conjuncts in these disjuncts. The pairing of disjuncts is selected based on the lowest cost, meaning we choose the pairing that requires adding the fewest new conjuncts to $Acc_s$. 
 
-Determining the lowest cost pairing is a form of assignment problem. There are several possible solutions. Our implementation uses the Hungarian method \cite{hungarian_method}. The input for this method is matrix $M$. Each element in $M$ represents the cost of merging two disjuncts, $d_k \in Acc_k$ and $d_s \in Acc_s$. The cost is calculated as the amount of Fin\footnote{Here Fin refers to any conjuncts Fin$(T_i) \in d_k$, where $T_i$ is arbitrary.} conjuncts in $d_k$ subtracted from the amount of Fin conjuncts in $d_s$ plus the amount of Inf\footnote{Analogous to Fin notation.} conjuncts in $d_k$ subtracted from the amount of Inf conjuncts in $d_s$. The cost cannot be lower than 0. The rows of $M$ represent the disjuncts of $Acc_s$ and the colums represent the disjuncts of $Acc_k$.
+Determining the lowest cost pairing is a form of assignment problem. There are several possible solutions. Our implementation uses the Hungarian method \cite{hungarian_method}. The input for this method is matrix $M$. Each element in $M$ represents the cost of merging two disjuncts, $d_k \in Acc_k$ and $d_s \in Acc_s$. The cost is calculated as the amount of Fin\footnote{Here Fin refers to any conjuncts Fin$(T_i) \in d_k$, where $T_i$ is arbitrary.} conjuncts in $d_k$ subtracted from the number of Fin conjuncts in $d_s$ plus the amount of Inf\footnote{Analogous to Fin notation.} conjuncts in $d_k$ subtracted from the amount of Inf conjuncts in $d_s$. The cost cannot be lower than 0. The rows of $M$ represent the disjuncts of $Acc_s$, and the columns represent the disjuncts of $Acc_k$.
 
 Intuitively, the cost describes how many conjuncts fewer $d_s$ has compared to $d_k$ (Fin conjuncts, and Inf conjuncts are counted separately). For example, if $d_k = \{\text{Fin}(T_1), \text{Inf}(T_2), \text{Inf}(T_3)\}$ is a disjunct of $Acc_k$ and $d_s = \{\text{Inf}(T_2)\}$ is a disjunct of $Acc_s$, then the cost of pairing such disjuncts is 2, because $d_s$ is missing one Inf conjunct and one Fin conjunct. 
 
@@ -523,7 +751,7 @@ Intuitively, the cost describes how many conjuncts fewer $d_s$ has compared to $
 The Hungarian method determines that we pair disjuncts $d_s$ and $d_k$, where $d_s$ is a disjunct of $Acc_s$ and $d_k$ is a disjunct of $Acc_k$. The merging process consists of the following steps:
 \begin{enumerate}
   \item Label all conjuncts of $d_s$ as unused.
-  \item Try to pair each conjunct in $Acc_k$ with a conjunct in $Acc_s$. Such pairing is possible under these conditions: The conjunct that belongs to $d_k$ is labeled as unused and both conjuncts are of the same type, meaning that either both are Fin or both are Inf.
+  \item Try to pair each conjunct in $Acc_k$ with a conjunct in $Acc_s$. Such pairing is possible under these conditions: The conjunct that belongs to $d_k$ is labeled as unused, and both conjuncts are of the same type, meaning that either both are Fin or both are Inf.
   \item \begin{enumerate}[a)]
     \item If such pairing exists, then we can define injective function $\varphi_k (T_k) = T_i$, where $T_k$ is the acceptance set of the conjunct in $d_k$, and $T_i$ is the acceptance set of the conjunct in $d_s$. Then label the paired conjunct of $d_s$ as used.
     \item If such pairing does not exist, then add a new conjunct to $d_s$. Let the new conjunct be of the same type as the conjunct in $d_k$ that could not be paired. It is necessary to prevent changing the language when adding the new conjunct. That can be achieved if the conjunct is satisfied by any run of $\mathcal{A'}$. In other words, if its type is Fin, then let the new acceptance set $T_x$, where $x = n + 1$, be an empty set.\footnote{It is necessary to update the number acceptance sets of $\mathcal{A}_s$ to reflect this change. Let $T_i, i \in \{1,2, \dots, n, n+1\}$ denote any acceptance set of $Acc_s$. Further references to $n$ denote the highest number of the set.} If the type is Inf, then let $T_x$ be a set of all transitions of the SCC. Label the new conjunct as used.
@@ -578,7 +806,7 @@ For all \emph{always accepting} SCCs, we need to ensure that at least one disjun
 \begin{equation*}
   T_i = T_i \cup A_{Scc},
 \end{equation*}
-where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is evaluated as \emph{true} because for each acceptance set $T_i$, that appears in the disjunct as Inf$(T_i)$, at least one transition is visited infinitely often. Therefore, any conjuncts in the form of Fin$(T_i)$, do not affect the satisfiability of the disjunct, because any such set $T_i$ does not contain any transitions of the SCC.
+where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is evaluated as \emph{true}, because for each acceptance set $T_i$, that appears in the disjunct as Inf$(T_i)$, at least one transition is visited infinitely often. Therefore, any conjuncts in the form of Fin$(T_i)$, do not affect the satisfiability of the disjunct, because any such set $T_i$ does not contain any transitions of the SCC.
 
 In \emph{maybe accepting} SCCs, we need to perform the following actions to restore equivalence with $\mathcal{A}$. Each disjunct $d_s$ of $Acc_s$ needs to be labeled as either satisfiable or not satisfiable.
 
