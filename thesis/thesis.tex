@@ -58,12 +58,9 @@
     keywords      = {TELA, TGBA, omega-automata, SPOT, SCC-based simplifications, automata reduction},
     TeXkeywords   = {TELA, TGBA, $\omega$-automata, SPOT, SCC-based simplifications, automata reduction},
     abstract      = {%
-    This thesis proposes SCC-based simplifications of acceptance condition formula for transition-based Emerson-Lei automata (TELA). These simplifications aim to reduce the number of unique acceptance sets of the automaton. The thesis includes a Python program that implements the proposed method. The effectivity of the program is experimentally evaluated.
+    This thesis proposes SCC-based simplifications of acceptance condition formulae for transition-based Emerson-Lei automata (TELA). These simplifications aim to reduce the number of unique acceptance sets of the automaton and possibly decrease the length of the acceptance formula. The thesis includes an experimental implementation of the proposed method and experimental evaluation of the implemented tool. 
     },
-    thanks        = {%TODO:
-      These are the acknowledgements for my thesis, which can
-
-      span multiple paragraphs.
+    thanks        = {Many thanks to Jan Strejček for his all his advice, patience. I would also like to thank Juraj Major TODO:
     },
     bib           = bibliography.bib,
 }
@@ -185,11 +182,11 @@ A run of $\mathcal{A}$ over $\Sigma^\omega$ is defined as $\rho \in \delta^\omeg
 
 The acceptance of a run $\rho$ is defined by evaluating $Acc$ over $\rho$ where
 \begin{itemize}
-  \item Fin$(T_i)$ is true if and only if all the transitions in $T_i$ occur finitely often in $\rho$, 
-  \item Inf$(T_i)$ is true if and only if some transition in $T_i$ occurs infinitely often in $\rho$.
+  \item Fin$(T_i)$ is \emph{true} if and only if all the transitions in $T_i$ occur finitely often in $\rho$, 
+  \item Inf$(T_i)$ is \emph{true} if and only if some transition in $T_i$ occurs infinitely often in $\rho$.
 \end{itemize}
 
-An infinite word $w \in \Sigma^\omega$ is an infinite sequence of letters of $\Sigma$. Word $w$ is accepted by $\mathcal{A}$ if $Acc$ is evaluated as true for the run of $\mathcal{A}$ over the word $w$. 
+An infinite word $w \in \Sigma^\omega$ is an infinite sequence of letters of $\Sigma$. Word $w$ is accepted by $\mathcal{A}$ if $Acc$ is evaluated as \emph{true} for the run of $\mathcal{A}$ over the word $w$. 
 
 The language of $\mathcal{A}$ is a set of words $w$ such that $\mathcal{A}$ has an accepting run over $w$.
 
@@ -230,7 +227,8 @@ This may result in each SCC having a different number of acceptance sets, howeve
 \end{equation*}
 in acceptance condition formula $Acc = \text{Inf}(T'_1) \wedge \text{Inf}(T'_2) \wedge \dots \wedge \text{Inf}(T'_{n'})$.
 
-\begin{figure}[h]
+\bigskip
+\begin{figure}[h!]
   \begin{center}
     \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
       \tikzstyle{every state}=[very thick]
@@ -252,10 +250,6 @@ in acceptance condition formula $Acc = \text{Inf}(T'_1) \wedge \text{Inf}(T'_2) 
     \label{fig:tgba}
   \end{center}
 \end{figure}
-
-In Figure \ref{fig:tgba} there is a TGBA with two accepting SCCs. Let $S_1$ be the SCC comprised of state 1 and $S_2$ be the SCC comprised of state 2. The set of useless acceptance sets for $S_1$ is $U_1 = \{\accmarkmag\}$, because $\accmarkblue \subseteq \accmarkmag$ (and also $\accmarkor \subseteq \accmarkmag$). For $S_2$ it is $U_2 = \{\accmarkblue, \accmarkor\}$, because $\accmarkmag \subseteq \accmarkblue$ and $\accmarkmag \subseteq \accmarkor$.
-
-The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \accmarkor\}$, $N_2 = \{\accmarkmag\}$ respectively. The number of needed acceptance sets for the whole automaton is $n' = 2$. We can define $N'_1 = N_1, N'_2 = N_2 \cup \{\accmarkor\}, \alpha_1 (\accmarkor) = \accmarkor, \alpha_1 (\accmarkblue) = \accmarkblue, \alpha_2 (\accmarkor) = \accmarkor, \alpha_2 (\accmarkblue) = \accmarkmag$. The result is the TGBA in Figure \ref{fig:simpl_tgba}.
 
 \begin{figure}[h]
     \begin{center}
@@ -280,6 +274,10 @@ The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \ac
   \end{center}
 \end{figure}
 
+In Figure \ref{fig:tgba} there is a TGBA with two accepting SCCs. Let $S_1$ be the SCC comprised of state 1 and $S_2$ be the SCC comprised of state 2. The set of useless acceptance sets for $S_1$ is $U_1 = \{\accmarkmag\}$, because $\accmarkblue \subseteq \accmarkmag$ (and also $\accmarkor \subseteq \accmarkmag$). For $S_2$ it is $U_2 = \{\accmarkblue, \accmarkor\}$, because $\accmarkmag \subseteq \accmarkblue$ and $\accmarkmag \subseteq \accmarkor$. 
+
+The sets of needed acceptance sets for $S_1, S_2$ are $N_1 = \{\accmarkblue, \accmarkor\}$, $N_2 = \{\accmarkmag\}$, respectively. The number of needed acceptance sets for the whole automaton is $n' = 2$. We define $N'_1 = N_1, N'_2 = N_2 \cup \{\accmarkor\}, \alpha_1 (\accmarkor) = \accmarkor, \alpha_1 (\accmarkblue) = \accmarkblue, \alpha_2 (\accmarkor) = \accmarkor, \alpha_2 (\accmarkblue) = \accmarkmag$. The result is the TGBA in Figure \ref{fig:simpl_tgba}.
+
 
 \chapter{SCC-based simplification of acceptance conditions of TELA}
 \label{chap:simpl_tela}
@@ -303,7 +301,7 @@ Let $T_{all} = \{i \in \{1, 2, \dots, n\} \mid \forall t \in \delta_{A'} \colon 
 
 Let $T_{any} = \{i \in \{1, 2, \dots, n\} \mid \exists t \in \delta_{A'} \colon t \in T_i \}$ be the set of indices of acceptance sets that contain at least one transition of the SCC.
 
-Let $Acc'$ be a copy of $Acc$. Let $T_i, i \in \{1, 2, \dots, n\}$ be an acceptance set of $\mathcal{A}$. Now we perform the following substitutions for each disjunct $d_k$ in $Acc'$. TODO: prepis
+Let $Acc'$ be a copy of $Acc$. Let $T_i, i \in \{1, 2, \dots, n\}$ be an acceptance set of $\mathcal{A}$. Now we perform the following substitutions for each disjunct $d_k$ in $Acc'$. 
 \begin{itemize}
   \item If $i \in T_{all}$ then we substitute \emph{true} for Inf$(T_i)$.
   \item If $i \in T_{all}$ then we substitute \emph{false} for Fin$(T_i)$.
@@ -315,7 +313,7 @@ Any disjunct in $Acc'$ that only contains \emph{true} is evaluated as \emph{true
 
 If any disjunct in $Acc'$ equals \emph{\{true\}}, then the SCC is \emph{always accepting}. If all disjuncts in $Acc'$ are equal to \emph{\{false\}}, then the SCC is \emph{never accepting}. If neither of the above conditions applies, then the SCC is \emph{maybe accepting}.
 
-TODO: priklad
+TODO:
 
 \section{Removing useless transitions from acceptance sets}
 Any accepting run of $\mathcal{A}$ has a suffix contained within an accepting SCC. Let $T_{o}$ be a set of all transitions outside of accepting SCCs. Such transitions can be removed from all acceptance sets without changing the language, because transitions outside of accepting SCCs are always visited finitely often by any accepting run of $\mathcal{A}$. Therefore, such transition $t_{o} \in T_i, i \in \{1, 2, \dots, n\}$ never changes the boolean value of Inf$(T_i)$, Fin$(T_i)$.
@@ -324,6 +322,35 @@ We can modify each acceptance set $T_i, i \in \{1, 2, \dots, n\}$ of $Acc$ as fo
 \begin{equation*}
   T_i \coloneqq T_i \smallsetminus T_{o}.
 \end{equation*}
+
+\begin{figure}[h] %TODO:
+  \centering
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+      \node[state, initial]   (0) at (0,0) {0};
+      \node[state]            (1) at (2.5, 0) {1};
+
+      \path[->, very thick]
+              (0) edge[]  node [above] {$a$} node[accset, collacc0, pos=0.30] {} node[accset, collacc1, pos=0.70] {} (1) 
+              (1) edge[loop above]  node[above] {$\overline{b}$} node[accset, collacc0] {} (1)
+              (1) edge[loop below]  node[below] {$b$} node[accset, collacc1] {} (1)
+              (1) edge[loop right]  node[right] {$\overline{a}$} (1);
+              
+  \end{tikzpicture}
+  \begin{tikzpicture}[->,>=stealth,shorten >=1pt,very thick,initial text={}]
+    \node[state, initial]   (0) at (0,0) {0};
+    \node[state]            (1) at (2.5, 0) {1};
+
+    \path[->, very thick]
+            (0) edge[]  node [above] {$a$} (1) 
+            (1) edge[loop above]  node[above] {$\overline{b}$} node[accset, collacc0] {} (1)
+            (1) edge[loop below]  node[below] {$b$} node[accset, collacc1] {} (1)
+            (1) edge[loop right]  node[right] {$\overline{a}$} (1);
+            
+\end{tikzpicture}
+  \caption{TELA}
+  \label{fig:remove_useless}
+\end{figure}
+
 
 \section{SCC simplifications}
 This section presents the simplification methods that can be applied to all SCCs that are \emph{maybe accepting}. Using these methods on \emph{always accepting} or \emph{never accepting} SCCs is not necessary because the acceptance formulae of such SCCs can be replaced with \emph{true} or \emph{false}, respectively. 
@@ -371,7 +398,7 @@ Then we can remove the useless conjuncts in $U$ from each disjunct of $Acc'$ as 
   Acc' = \{d_1 \smallsetminus U, d_2 \smallsetminus U, \dots, d_m \smallsetminus U\}.
 \end{equation*}
 
-Similarly, Fin$(T_i)$ is always true if no transitions of the SCC belong to $T_i$. Therefore all such Fin$(T_i)$ can be removed from $Acc'$ without changing the language.
+Similarly, Fin$(T_i)$ is always \emph{true} if no transitions of the SCC belong to $T_i$. Therefore all such Fin$(T_i)$ can be removed from $Acc'$ without changing the language.
 The set of useless conjuncts can be defined as:
 \begin{equation*}
   U = \{\text{Fin}(T_i) \mid i \in \{1,2, \dots, n\} \wedge T_i \cap \delta_{A'} = \emptyset\}.
@@ -547,7 +574,7 @@ To restore the equivalence with the original automaton in \emph{never accepting}
 \end{equation*}
 where $A_{Scc}$ is a set of all transitions that belong to the \emph{never accepting} SCC. Then any run of $\mathcal{A}_s$ that is contained within that SCC is not satisfied because at least one transition of $T_i$ is visited infinitely often; therefore, Fin$(T_i)$ is evaluated as \emph{false}.
 
-For all \emph{always accepting} SCCs, we need to ensure that at least one disjunct of $Acc_s$ is true for any run of $\mathcal{A}_s$ that is contained within such SCC. If there is a disjunct in $Acc_s$ that only contains Fin$(T_i)$, where $T_i$ is any acceptance set of $Acc_s$, then the requirement is satisfied. Otherwise, we choose a disjunct that contains the fewest Inf conjuncts and modify the acceptance sets of $Acc_s$ so that these conjuncts are true for any run of $Acc_s$ that is contained within the \emph{always accepting} SCC. All acceptance sets $T_i$ that appear in the selected disjunct in conjuncts Inf$(T_i)$ need to be modified as follows:
+For all \emph{always accepting} SCCs, we need to ensure that at least one disjunct of $Acc_s$ is \emph{true} for any run of $\mathcal{A}_s$ that is contained within such SCC. If there is a disjunct in $Acc_s$ that only contains Fin$(T_i)$, where $T_i$ is any acceptance set of $Acc_s$, then the requirement is satisfied. Otherwise, we choose a disjunct that contains the fewest Inf conjuncts and modify the acceptance sets of $Acc_s$ so that these conjuncts are \emph{true} for any run of $Acc_s$ that is contained within the \emph{always accepting} SCC. All acceptance sets $T_i$ that appear in the selected disjunct in conjuncts Inf$(T_i)$ need to be modified as follows:
 \begin{equation*}
   T_i = T_i \cup A_{Scc},
 \end{equation*}
@@ -557,13 +584,13 @@ In \emph{maybe accepting} SCCs, we need to perform the following actions to rest
 
 Let $T_S$ be the set of acceptance sets that appear in $d_s$. If $\varphi_k$  maps any set of $Acc_k$ to any set in $T_S$, then $d_s$ is satisfiable. If $\varphi_k$  does not map any set of $Acc_k$ to any set in $T_S$, then $d_s$ is not satisfiable.
 
-Satisfiable disjuncts may contain conjuncts with acceptance sets, that are not present in $Acc_k$. Any such conjunct needs to be evaluated as true for any run of $\mathcal{A}_s$. Therefore, the acceptance set $T_i$ of such conjunct is modified as follows:
+Satisfiable disjuncts may contain conjuncts with acceptance sets, that are not present in $Acc_k$. Any such conjunct needs to be evaluated as \emph{true} for any run of $\mathcal{A}_s$. Therefore, the acceptance set $T_i$ of such conjunct is modified as follows:
 \begin{equation*}
   T_i \coloneqq T_i \cup \delta_{A'},
 \end{equation*}
 where $\delta_{A'}$ is a set of all transitions that belong to the \emph{maybe accepting} SCC. 
 
-Each disjunct, labeled as not satisfiable, needs to be evaluated as false for any run of $\mathcal{A}_s$. All disjuncts that contain at least one Inf$(T_i)$ already meet this requirement because $T_i$ is an arbitrary acceptance set of $Acc_s$ that does not contain any transitions of $\delta_{A'}$. All not satisfiable disjuncts of $Acc_s$ that only contain Fin$(T_i)$ conjuncts need to be modified as follows:
+Each disjunct, labeled as not satisfiable, needs to be evaluated as \emph{false} for any run of $\mathcal{A}_s$. All disjuncts that contain at least one Inf$(T_i)$ already meet this requirement because $T_i$ is an arbitrary acceptance set of $Acc_s$ that does not contain any transitions of $\delta_{A'}$. All not satisfiable disjuncts of $Acc_s$ that only contain Fin$(T_i)$ conjuncts need to be modified as follows:
 \begin{equation*}
   T_i \coloneqq T_i \cup \delta_{A'},
 \end{equation*}
@@ -599,13 +626,13 @@ Table \ref{tab:arguments} shows the arguments and their descriptions. If no outp
 \chapter{Experimental Evaluation}
 This chapter contains the results of the experimental evaluation of TELAtko. All experiments were performed on a laptop with Intel Core i5-7200U (2.50GHz) processor and 8GB RAM. 
 
-We generated 4000 LTL \cite{ltl} formulae using \textbf{randltl} tool (version 2.8.4) \cite{randltl}. The formulae were then translated using \textbf{ltl2dgra}, a translator tool included in Rabinizer4 \cite{rabinizer4}. We filtered out automata with fewer than 3 acceptance sets and fewer that 3 SCCs. The remaining 673 automata are referred to as \emph{set1}.
+We generated 4000 LTL \cite{ltl} formulae using \textbf{randltl} tool (version 2.8.4) \cite{randltl}. The formulae were then translated using \textbf{ltl2dgra}, a translator tool included in Rabinizer4 \cite{rabinizer}. We filtered out automata with fewer than 3 acceptance sets and fewer that 3 SCCs. The remaining 673 automata are referred to as \emph{set1}.
 
 We generated 10000 LTL formulae using the \textbf{randltl} tool. The formulae were then translated using LTL3TELA (version 2.1.0) \cite{ltl3tela}. We filtered out automata with less than 2 acceptance sets and less than 3 SCCs. The remaining 399 automata are referred to as \emph{set2}.
 
 Both sets were used the run the following experiments. First, we used \textbf{autfilt} (version 2.8.4) \cite{spot} with \emph{simplify-acceptance} transformation option. The transformed automata were then processed by TELAtko. Finally, we used \textbf{autfilt} with \emph{simplify-acceptance} again on the automata processed by TELAtko. All statistics were generated using \textbf{autcross} (version 2.8.4) \cite{spot}.
 
-Table \ref{tab:rabinizer4} shows the results of the experiments with set1. TELAtko significantly reduced the length of acceptance formulae, but the number of acceptance sets remained the same. Using \textbf{autfilt} after TELAtko lead to an increase in the length of acceptance formulae, but the number of acceptance sets in the transformed automata was reduced by approximately 34 \%.
+Table \ref{tab:rabinizer4} shows the results of the experiments with set1. TELAtko significantly reduced the length of acceptance formulae, but the number of acceptance sets remained the same. Using \textbf{autfilt} after TELAtko lead to an increase in the length of acceptance formulae, but the number of acceptance sets in the transformed automata was reduced.
 
 \begin{table}[h]
   \begin{tabularx}{\textwidth}{lXXX}
@@ -617,7 +644,7 @@ Table \ref{tab:rabinizer4} shows the results of the experiments with set1. TELAt
     Autfilt & 7491 & 1400 & 1361 \\    
     \bottomrule
   \end{tabularx}
-  \caption{Overall results of autfilt and our tool used on automata translated by Rabinizer4.}
+  \caption{Overall results of \textbf{autfilt} and our tool used on automata translated by Rabinizer4.}
   \label{tab:rabinizer4}
 \end{table}
 
@@ -633,7 +660,7 @@ Table \ref{tab:ltl3tela} shows the results of experiments run with set2. TELAtko
     Autfilt & 2659 & 825 & 703 \\    
     \bottomrule
   \end{tabularx}
-  \caption{Overall results of autfilt and our tool used on automata translated by LTL3TELA.}
+  \caption{Overall results of the experiments using set2.}
   \label{tab:ltl3tela}
 \end{table}
 
@@ -642,8 +669,8 @@ Table \ref{tab:ltl3tela} shows the results of experiments run with set2. TELAtko
     \begin{tikzpicture}
       \input{scplot_at_marks.tex}
     \end{tikzpicture}
-  \caption{}
-  \label{fig:scplot_formula_len}
+  \caption{Plot showing the numbers of acceptance sets of automata transformed with \textbf{autfilt} compared to \textbf{autfilt} + TELAtko + \textbf{autfilt}. Cross marks denote automata from set1, circle marks denote automata from set2.}
+  \label{fig:scplot_marks}
 \end{figure}
 
 \begin{figure}[h]
@@ -651,7 +678,7 @@ Table \ref{tab:ltl3tela} shows the results of experiments run with set2. TELAtko
     \begin{tikzpicture}
       \input{scplot_at_flen.tex}
     \end{tikzpicture}
-  \caption{}
+  \caption{Plot showing the length of acceptance formulae of automata transformed with \textbf{autfilt} compared to \textbf{autfilt} + TELAtko + \textbf{autfilt}. Cross marks denote automata from set1, circle marks denote automata from set2.}
   \label{fig:scplot_formula_len}
 \end{figure}
 
@@ -667,7 +694,10 @@ Table \ref{tab:ltl3tela} shows the results of experiments run with set2. TELAtko
 \appendix
 \chapter{An appendix}
 \section{Running TELAtko}
-TODO:
+\begin{itemize}
+  \item Install SPOT\footnote{\url{https://spot.lrde.epita.fr/install.html}} v.2.8+ and SciPy\footnote{\url{https://www.scipy.org/install.html}} into the \texttt{PATH} of your system.
+  \item Go to directory with TELAtko. Examples of using TELAtko: "./TELAtko -F myautomata.hoa", "./TELAtko -F myautomata.hoa -O result.hoa"
+\end{itemize}
 \section{Contents of thesis.zip}
 TODO:
 \end{document}

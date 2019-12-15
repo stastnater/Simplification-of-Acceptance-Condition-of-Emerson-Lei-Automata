@@ -1,0 +1,97 @@
+\pgfplotsset{every axis legend/.append style={
+    cells={anchor=west},
+    draw=none,
+    }}
+    \pgfplotsset{colorbar/width=.3cm}
+    \pgfplotsset{title style={align=center,
+                            font=\small}}
+    %\pgfplotsset{compat=1.14}
+    \begin{axis}[
+    title={Number of acceptance marks},
+    xmin=-1,ymin=-1,%
+    colorbar,%
+    %colormap={example}{
+    %  color(0)=(blue)
+    %  color(500)=(green)
+    %  color(1000)=(red)
+    %},
+    %thick,
+    axis x line* = bottom,
+    axis y line* = left,
+    width=9cm, height=9cm, 
+    xlabel={autfilt},
+    ylabel={autfilt + TELAtko + autfilt},
+    cycle list={%
+    {darkgreen, solid},
+    {blue, densely dashed},
+    {red, dashdotdotted},
+    {brown, densely dotted},
+    {black, loosely dashdotted}
+    },
+    %
+    ]
+    \addplot[
+        scatter, scatter src=explicit, 
+        only marks, fill opacity=0, thick,
+        mark size=3.3pt, mark =halfcircle*
+        ] coordinates
+        {(3,2) [41]
+        (3,1) [2]
+        (3,3) [19]
+        (3,4) [2]
+        (4,2) [18]
+        (4,5) [1]
+        (4,4) [9]
+        (4,3) [2]
+        (5,4) [1]
+        (5,3) [2]
+        (5,2) [4]
+        (5,5) [1]
+        (7,7) [2]
+        (2,2) [239]
+        (2,1) [51]
+        (6,3) [1]
+        (6,6) [4]                          
+    };%
+
+    \addplot+[scatter, scatter src=explicit,
+    only marks, mark options={solid},
+    mark size=3pt, mark=+, thick] coordinates 
+        {(2,2) [65]
+        (2,1) [168]
+        (2,0) [15]
+        (9,9) [1]
+        (9,7) [1]
+        (9,4) [1]
+        (4,4) [35]
+        (4,1) [16]
+        (4,3) [18]
+        (4,2) [28]
+        (7,3) [4]
+        (7,4) [5]
+        (7,5) [3]
+        (5,4) [6]
+        (5,5) [21]
+        (5,2) [15]
+        (5,3) [23]
+        (8,8) [5]
+        (8,9) [2]
+        (8,7) [1]
+        (8,4) [4]
+        (8,5) [3]
+        (12,11) [3]
+        (12,10) [3]
+        (3,3) [28]
+        (3,2) [90]
+        (3,0) [2]
+        (3,4) [2]
+        (3,1) [75]
+        (6,5) [2]
+        (6,4) [1]
+        (6,3) [7]
+        (0,0) [20]
+        };
+
+    \addplot[color=gray,domain=-1:12]{x};%            
+    \end{axis}
+        
