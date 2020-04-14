@@ -1,0 +1,445 @@
+% Declare the following new shapes:
+% - semidashed circle
+% - capsule
+% - semidashed capsule
+
+\usetikzlibrary{shapes}
+
+\pgfdeclareshape{semidashed circle}
+{
+  \inheritsavedanchors[from=circle] % this is nearly a circle
+  \inheritanchorborder[from=circle]
+  \inheritanchor[from=circle]{north}
+  \inheritanchor[from=circle]{north west}
+  \inheritanchor[from=circle]{north east}
+  \inheritanchor[from=circle]{center}
+  \inheritanchor[from=circle]{west}
+  \inheritanchor[from=circle]{east}
+  \inheritanchor[from=circle]{mid}
+  \inheritanchor[from=circle]{mid west}
+  \inheritanchor[from=circle]{mid east}
+  \inheritanchor[from=circle]{base}
+  \inheritanchor[from=circle]{base west}
+  \inheritanchor[from=circle]{base east}
+  \inheritanchor[from=circle]{south}
+  \inheritanchor[from=circle]{south west}
+  \inheritanchor[from=circle]{south east}
+  \inheritbackgroundpath[from=circle]
+  \foregroundpath{
+    \centerpoint%
+    \pgfutil@tempdima=\radius%
+    \advance\pgfutil@tempdima by-0.6pt%
+    \advance\pgfutil@tempdima by-\pgflinewidth%
+    \pgfmathsetlength{\pgf@xb}{\pgfkeysvalueof{/pgf/outer xsep}}%
+    \pgfmathsetlength{\pgf@yb}{\pgfkeysvalueof{/pgf/outer ysep}}%
+    \ifdim\pgf@xb<\pgf@yb%
+      \advance\pgfutil@tempdima by-\pgf@yb%
+    \else%
+      \advance\pgfutil@tempdima by-\pgf@xb%
+    \fi%
+    \pgfsetdash{{3pt}{3pt}}{0pt}
+    \pgfpathcircle{\centerpoint}{\pgfutil@tempdima}%
+  }
+}
+\pgfdeclareshape{capsule}
+{
+	\savedmacro\getcapsulepoints{%
+		\pgfmathsetlength\pgf@xc{\pgfkeysvalueof{/pgf/inner xsep}}%
+		\pgf@x\pgf@xc%
+		\advance\pgf@x.5\wd\pgfnodeparttextbox%
+		\pgfmathsetlength\pgf@yc{\pgfkeysvalueof{/pgf/inner ysep}}%
+		\pgf@y\pgf@yc%
+		\advance\pgf@y.5\ht\pgfnodeparttextbox%
+		\advance\pgf@y.5\dp\pgfnodeparttextbox%
+		\ifpgfshapeborderusesincircle%
+			\pgfmathsetmacro\rotate{\pgfkeysvalueof{/pgf/shape border rotate}}%
+			\ifdim\pgf@x<\pgf@y%
+				\pgf@x\pgf@y%
+			\else%
+				\pgf@y\pgf@x%
+			\fi%
+			\pgf@x1.414213\pgf@x%
+			\pgf@y1.414213\pgf@y%
+		\else%
+			\pgfmathmod{\pgfkeysvalueof{/pgf/shape border rotate}}{360}%
+			\ifdim\pgfmathresult pt<0pt\relax%
+				\pgfmathadd@{\pgfmathresult}{360}%
+			\fi%
+			\pgfmathsetcount\c@pgf@counta{+\pgfmathresult}%
+			\advance\c@pgf@counta45\relax%
+			\divide\c@pgf@counta90\relax%
+			\multiply\c@pgf@counta90\relax%
+			\edef\rotate{\the\c@pgf@counta}%
+			\ifnum\c@pgf@counta=90\relax%
+				\pgf@xa\pgf@x%
+				\pgf@x\pgf@y%
+				\pgf@y\pgf@xa%
+				\pgf@yc\pgf@xc%
+			\else%
+				\ifnum\c@pgf@counta=270\relax%
+					\pgf@xa\pgf@x%
+					\pgf@x\pgf@y%
+					\pgf@y\pgf@xa%
+					\pgf@yc\pgf@xc%
+				\fi%
+			\fi%
+		\fi%
+		\addtosavedmacro\rotate%
+		\pgf@xa\pgf@x%
+		\pgf@ya\pgf@y%
+		\pgfutil@tempdima\pgfshapeaspect\pgf@ya%
+		\pgfutil@tempdimb\pgf@ya%
+		%
+		% Adjust for minimum height.
+		%
+		\pgfmathsetlength\pgf@xc{\pgfkeysvalueof{/pgf/minimum width}}%
+		\ifdim\pgfutil@tempdimb<.5\pgf@xc\relax%
+			\pgfutil@tempdimb.5\pgf@xc%
+			\pgf@ya\pgfutil@tempdimb%
+                        \pgfutil@tempdima\pgfshapeaspect\pgfutil@tempdimb%
+		\fi%
+                %
+		% Calculate how far the node contents can extend into the cylinder bottom.
+		%
+		\pgf@yb\pgfutil@tempdimb%
+		\advance\pgf@yb-\pgf@yc%
+		\pgfmathdivide@{\pgfmath@tonumber{\pgf@yb}}{\pgfmath@tonumber{\pgfutil@tempdimb}}%
+		\pgfmathasin@{\pgfmathresult}%
+		\pgfmathcos@{\pgfmathresult}%
+		\let\angle\pgfmathresult%
+		\pgf@xb\pgfmathresult\pgfutil@tempdima%
+		%
+		% Adjust for minimum width.
+		%
+		\pgf@x.5\pgflinewidth%
+		\advance\pgf@x2.0\pgf@xa%
+		\advance\pgf@x3.0\pgfutil@tempdima%
+		\advance\pgf@x-2.0\pgf@xb%
+		\pgfmathsetlength\pgf@xc{\pgfkeysvalueof{/pgf/minimum height}}%
+		\ifdim\pgf@x<\pgf@xc%
+			\advance\pgf@xc-\pgf@x%
+			\advance\pgf@xa.5\pgf@xc%
+		\fi%
+		%
+		% Add the larger of the outer sep to the radii.
+		%
+		\pgf@x\pgfutil@tempdima\relax%
+		\pgf@y\pgfutil@tempdimb\relax%
+		\pgfmathsetlength\pgf@xc{\pgfkeysvalueof{/pgf/outer xsep}}%
+		\pgfmathsetlength\pgf@yc{\pgfkeysvalueof{/pgf/outer ysep}}%
+		\ifdim\pgf@xc>\pgf@yc%
+			\advance\pgf@x\pgf@xc%
+			\advance\pgf@y\pgf@xc%
+			\edef\outersep{\the\pgf@xc}%
+		\else%
+			\advance\pgf@x\pgf@yc%
+			\advance\pgf@y\pgf@yc%
+			\edef\outersep{\the\pgf@yc}%
+		\fi%
+		\edef\xradius{\the\pgf@x}%
+		\edef\yradius{\the\pgf@y}%
+		\addtosavedmacro\xradius%
+		\addtosavedmacro\yradius%
+		\addtosavedmacro\outersep%
+		%
+		\pgfextract@process\cylindercenter{%
+			\pgf@x0pt%
+			\pgf@y0pt%
+		}%
+		\addtosavedmacro\cylindercenter%
+		%
+		\pgfextract@process\beforetop{%
+			\pgf@x\pgf@xa%
+                        \advance\pgf@x-\pgf@xb%
+			\pgf@y\pgf@ya%
+		}%
+		\pgfextract@process\afterbottom{%
+			\pgf@x-\pgf@xa%
+			\advance\pgf@x\pgf@xb%
+			\pgf@y\pgf@ya%
+		}%
+		\addtosavedmacro\beforetop%
+		\addtosavedmacro\afterbottom%
+		\pgfmathsetlength\pgf@yc{\pgfkeysvalueof{/pgf/outer ysep}}%
+		\pgfextract@process\beforetopanchor{%
+			\beforetop%
+			\advance\pgf@y\pgf@yc%
+		}%
+		\pgfextract@process\afterbottomanchor{%
+			\afterbottom%
+			\advance\pgf@y\pgf@yc%
+		}%
+		\addtosavedmacro\beforetopanchor%
+		\addtosavedmacro\afterbottomanchor%
+		%
+		\beforetopanchor%
+		\advance\pgf@x\xradius\relax%
+		\ifdim\pgf@x>\pgf@y%
+			\edef\externalradius{\the\pgf@x}%
+		\else%
+			\edef\externalradius{\the\pgf@y}%
+		\fi%
+		\addtosavedmacro\externalradius%
+	}
+	\savedanchor\centerpoint{%
+		\pgf@x.5\wd\pgfnodeparttextbox%
+		\pgf@y.5\ht\pgfnodeparttextbox%
+		\advance\pgf@y-.5\dp\pgfnodeparttextbox%
+	}%
+	\savedanchor\midpoint{%
+		\pgf@x.5\wd\pgfnodeparttextbox%
+		\pgfmathsetlength\pgf@y{+0.5ex}%
+	}%
+	\savedanchor\basepoint{%
+		\pgf@x.5\wd\pgfnodeparttextbox%
+		\pgf@y0pt%
+	}%
+	\anchor{center}{\centerpoint}
+	\anchor{shape center}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{\pgfpointadd{\cylindercenter}{\centerpoint}}%
+			{\centerpoint}{\rotate}%
+	}%
+	\anchor{mid}{\midpoint}%
+	\anchor{mid east}{%
+		\getcapsulepoints%
+		\let\pgf@cylinder@referencepoint\midpoint%
+		\pgf@anchor@cylinder@border{\pgfqpoint{\externalradius}{0pt}}%
+	}%
+	\anchor{mid west}{%
+		\getcapsulepoints%
+		\let\pgf@cylinder@referencepoint\midpoint%
+		\pgf@anchor@cylinder@border{\pgfqpoint{-\externalradius}{0pt}}%
+	}%
+	\anchor{base}{\basepoint}%
+	\anchor{base east}{%
+		\getcapsulepoints%
+		\let\pgf@cylinder@referencepoint\basepoint%
+		\pgf@anchor@cylinder@border{\pgfqpoint{\externalradius}{0pt}}%
+	}%
+	\anchor{base west}{%
+		\getcapsulepoints%
+		\let\pgf@cylinder@referencepoint\basepoint%
+		\pgf@anchor@cylinder@border{\pgfqpoint{-\externalradius}{0pt}}%
+	}%
+	\anchor{north}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{0pt}{\externalradius}}%
+	}%
+	\anchor{south}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{0pt}{-\externalradius}}%
+	}%
+	\anchor{east}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{\externalradius}{0pt}}%
+	}%
+	\anchor{west}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{-\externalradius}{0pt}}%
+	}%
+	\anchor{north east}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{\externalradius}{\externalradius}}%
+	}%
+	\anchor{south west}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{-\externalradius}{-\externalradius}}%
+	}%
+	\anchor{south east}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{\externalradius}{-\externalradius}}%
+	}%
+	\anchor{north west}{%
+		\getcapsulepoints%
+		\pgf@anchor@cylinder@border{\pgfqpoint{-\externalradius}{\externalradius}}%
+	}%
+	\anchor{before top}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{\pgfpointadd{\beforetopanchor}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\anchor{top}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{%
+			\pgfpointadd{%
+				\beforetop%
+				\pgf@y0pt\relax%
+				\advance\pgf@x\xradius\relax%
+			}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\anchor{after top}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{\pgfpointadd{\beforetopanchor\pgf@y-\pgf@y}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\anchor{before bottom}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{\pgfpointadd{\afterbottomanchor\pgf@y-\pgf@y}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\anchor{bottom}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{%
+			\pgfpointadd{%
+				\afterbottom%
+				\pgf@y0pt\relax%
+				\advance\pgf@x-\xradius\relax%
+			}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\anchor{after bottom}{%
+		\getcapsulepoints%
+		\pgfmathrotatepointaround{\pgfpointadd{\afterbottomanchor}{\centerpoint}}{\centerpoint}{\rotate}%
+	}
+	\backgroundpath{%
+		\getcapsulepoints%
+		{%
+			\pgf@x\xradius\relax%
+			\advance\pgf@x-\outersep\relax%
+			\edef\xradius{\the\pgf@x}%
+			\pgf@y\yradius\relax%
+			\advance\pgf@y-\outersep\relax%
+			\edef\yradius{\the\pgf@y}%
+			\pgftransformshift{\centerpoint}%
+			\pgftransformrotate{\rotate}%
+			\pgfpathmoveto{\afterbottom}%
+			\pgfpatharc{90}{270}{\xradius and \yradius}%
+			\pgfpathlineto{\beforetop\pgf@y-\pgf@y}%
+			\pgfpatharc{-90}{90}{\xradius and \yradius}%
+			\pgfpathclose%
+		}%
+	}%
+	\anchorborder{%
+		\pgfextract@process\externalpoint{}%
+		\getcapsulepoints%
+		\pgfutil@ifundefined{pgf@cylinder@referencepoint}{\let\referencepoint\centerpoint}{%
+			\let\referencepoint\pgf@cylinder@referencepoint}%
+		\pgfextract@process\externalpoint{%
+			\externalpoint%
+			\pgf@xa\pgf@x%
+			\pgf@ya\pgf@y%
+			\referencepoint%
+			\advance\pgf@x\pgf@xa%
+			\advance\pgf@y\pgf@ya%
+		}%
+		\pgfmathanglebetweenpoints{\centerpoint}{\externalpoint}%
+		\pgfmathsubtract@{\pgfmathresult}{\rotate}%
+		\ifdim\pgfmathresult pt<0pt\relax%
+			\pgfmathadd@{\pgfmathresult}{360}%
+		\fi%
+		\let\externalangle\pgfmathresult%
+		%
+		\pgfmathanglebetweenpoints{\referencepoint}{\pgfpointadd{\afterbottomanchor}{\centerpoint}}%
+		\ifdim\externalangle pt<\pgfmathresult pt\relax%
+			\pgfmathanglebetweenpoints{\referencepoint}{\pgfpointadd{\beforetopanchor}{\centerpoint}}%
+			\ifdim\externalangle pt<\pgfmathresult pt\relax%
+				\pgfmathrotatepointaround{%
+					\pgfmathpointintersectionoflineandarc%
+						{\pgfmathrotatepointaround{\externalpoint}{\centerpoint}{-\rotate}}%
+						{\pgfmathrotatepointaround{\referencepoint}{\centerpoint}{-\rotate}}%
+						{%
+							\beforetop%
+							\pgf@xa\pgf@x%
+							\centerpoint%
+							\advance\pgf@x\pgf@xa%
+						}%
+						{0}{90}{\xradius and \yradius}%
+					}{\centerpoint}{\rotate}%
+			\else%
+				\pgfpointintersectionoflines{%
+					\pgfmathrotatepointaround{\pgfpointadd{\afterbottomanchor}{\centerpoint}}%
+						{\centerpoint}{\rotate}}{%
+					\pgfmathrotatepointaround{\pgfpointadd{\beforetopanchor}{\centerpoint}}%
+						{\centerpoint}{\rotate}}%
+					{\referencepoint}{\externalpoint}%
+			\fi%
+		\else%
+			\pgfmathanglebetweenpoints{\referencepoint}{\pgfpointadd{\afterbottomanchor\pgf@y-\pgf@y}{\centerpoint}}%
+			\ifdim\externalangle pt>\pgfmathresult pt\relax%
+				\pgfmathanglebetweenpoints{\referencepoint}{\pgfpointadd{\beforetopanchor\pgf@y-\pgf@y}{\centerpoint}}%
+				\ifdim\externalangle pt>\pgfmathresult pt\relax%
+					\pgfmathrotatepointaround{%
+						\pgfmathpointintersectionoflineandarc%
+							{\pgfmathrotatepointaround{\externalpoint}{\centerpoint}{-\rotate}}%
+							{\pgfmathrotatepointaround{\referencepoint}{\centerpoint}{-\rotate}}%
+							{%
+								\beforetop%
+								\pgf@xa\pgf@x%
+								\centerpoint
+								\advance\pgf@x\pgf@xa%
+							}%
+							{270}{360}{\xradius and \yradius}%
+						}{\centerpoint}{\rotate}%
+				\else%
+					\pgfpointintersectionoflines{%
+						\pgfmathrotatepointaround{\pgfpointadd{\afterbottomanchor\pgf@y-\pgf@y}{\centerpoint}}%
+							{\centerpoint}{\rotate}}{%
+						\pgfmathrotatepointaround{\pgfpointadd{\beforetopanchor\pgf@y-\pgf@y}{\centerpoint}}%
+							{\centerpoint}{\rotate}}%
+						{\referencepoint}{\externalpoint}%
+				\fi%
+			\else%
+				\pgfmathrotatepointaround{%
+					\pgfmathpointintersectionoflineandarc%
+						{\pgfmathrotatepointaround{\externalpoint}{\centerpoint}{-\rotate}}%
+						{\pgfmathrotatepointaround{\referencepoint}{\centerpoint}{-\rotate}}%
+						{%
+							\afterbottom%
+							\pgf@xa\pgf@x%
+							\centerpoint
+							\advance\pgf@x\pgf@xa%
+						}%
+						{90}{270}{\xradius and \yradius}%
+					}{\centerpoint}{\rotate}%
+			\fi%
+		\fi%
+	}
+  }%
+
+\pgfdeclareshape{semidashed capsule}
+{
+  \inheritsavedanchors[from=capsule] % this is nearly a capsule
+  \inheritanchorborder[from=capsule]
+  \inheritanchor[from=capsule]{north}
+  \inheritanchor[from=capsule]{north west}
+  \inheritanchor[from=capsule]{north east}
+  \inheritanchor[from=capsule]{center}
+  \inheritanchor[from=capsule]{west}
+  \inheritanchor[from=capsule]{east}
+  \inheritanchor[from=capsule]{mid}
+  \inheritanchor[from=capsule]{mid west}
+  \inheritanchor[from=capsule]{mid east}
+  \inheritanchor[from=capsule]{base}
+  \inheritanchor[from=capsule]{base west}
+  \inheritanchor[from=capsule]{base east}
+  \inheritanchor[from=capsule]{south}
+  \inheritanchor[from=capsule]{south west}
+  \inheritanchor[from=capsule]{south east}
+  \inheritanchor[from=capsule]{top}
+  \inheritanchor[from=capsule]{before top}
+  \inheritanchor[from=capsule]{after top}
+  \inheritanchor[from=capsule]{bottom}
+  \inheritanchor[from=capsule]{before bottom}
+  \inheritanchor[from=capsule]{after bottom}
+  \inheritbackgroundpath[from=capsule]
+  \foregroundpath{
+    \getcapsulepoints%
+    {%
+      \pgfutil@tempdima=-\pgflinewidth%
+      \advance\pgfutil@tempdima by-0.6pt%
+      \pgf@x\xradius\relax%
+      \advance\pgf@x-\outersep\relax%
+      \advance\pgf@x\pgfutil@tempdima%
+      \edef\xradius{\the\pgf@x}%
+      \pgf@y\yradius\relax%
+      \advance\pgf@y-\outersep\relax%
+      \advance\pgf@y\pgfutil@tempdima%
+      \edef\yradius{\the\pgf@y}%
+      \pgfsetdash{{3pt}{3pt}}{0pt}
+      \pgftransformshift{\centerpoint}%
+      \pgftransformrotate{\rotate}%
+      \pgfpathmoveto{\afterbottom\advance\pgf@y\pgfutil@tempdima}%
+      \pgfpatharc{90}{270}{\xradius and \yradius}%
+      \pgfpathlineto{\beforetop\pgf@y-\pgf@y\advance\pgf@y-\pgfutil@tempdima}%
+      \pgfpatharc{-90}{90}{\xradius and \yradius}%
+      \pgfpathclose%
+    }%
+  }
+}

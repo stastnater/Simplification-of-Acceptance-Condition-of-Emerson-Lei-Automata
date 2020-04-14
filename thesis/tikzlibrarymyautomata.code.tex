@@ -1,0 +1,104 @@
+% Automata stuff
+\usetikzlibrary{automata}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{bending}
+\usetikzlibrary{shapes.callouts}
+\usetikzlibrary{quotes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{calc}
+
+\tikzstyle{automaton}=[
+  % Use nice arrows that do not touch their destination.
+  thick,shorten >=1pt,>={Stealth[round,bend]},
+  % Encourage a common distance between all states.
+  node distance=1.8cm,
+  % Disable the "start" text in front of the initial arrow.
+  initial text=,
+  % Allows to use scale to scale the figure
+  transform shape,
+  % Reduce the size of the hidden node at the beginning of the initial arrow.
+  every initial by arrow/.style={every node/.style={inner sep=0pt}},
+  % Encourage a common size of all states that is smaller than the default.
+  every state/.style={text width=8mm,inner sep=0pt,align=center,fill=white}
+]
+\tikzstyle{smallautomaton}=[
+  automaton,
+  node distance=5mm,
+  every state/.style={minimum size=4mm,fill=white,inner sep=1pt}
+]
+
+\tikzstyle{cstate}=[state,capsule,text width=]
+\tikzstyle{dot}=[fill=black,circle,minimum size=5pt,inner sep=0]
+\tikzstyle{acclabel} = [fill=yellow!20,rounded corners=3pt,draw=black]
+\tikzstyle{flabel} = [rounded corners=3pt,draw=black]
+
+\makeatletter
+\tikzoption{initial angle}{\tikzaddafternodepathoption{\def\tikz@initial@angle{#1}}}
+\makeatother
+
+% pass "initial overlay" as a parameter to the tikz figure if you want
+% to initial arrow to be ignored from the computation of the figure
+% box.  This might be needed for better caption centering.
+\tikzstyle{initial overlay}=[every initial by arrow/.style={overlay}]
+
+\tikzset{
+  collacc0/.style={fill=blue!50!cyan},
+  collacc1/.style={fill=magenta},
+  collacc2/.style={fill=orange!90!black},
+  collacc3/.style={fill=green!70!black},
+  collacc4/.style={fill=red!20!magenta},
+  collacc5/.style={fill=pink},
+  collacc6/.style={fill=yellow!60!orange},
+}
+
+% Acceptance sets are displayed as small circles with white
+% sans-serif number.  The default color is light blue. Can be
+% changed by collacc styles.  Use anchor=center to ignore the
+% predefined anchor on edges like "loop above" or "loop left"
+% or when using path[auto].
+\tikzstyle{accset}=[
+  circle,inner sep=.9pt,
+  collacc0, text=white,
+  thin,
+  anchor=center,
+  font=\bfseries\sffamily\scriptsize,
+  minimum size={6pt},
+]
+% Acceptance set as square
+\tikzstyle{accsquare}=[accset,rectangle,inner sep=1.9pt,rounded corners=0pt]
+\tikzstyle{accdiamond}=[accset,diamond,inner sep=.7pt,rounded corners=0pt]
+
+\tikzset{
+  % Easy typesetting of colored accepting marks. Usage:
+  % (n1) edge pic[pos=.3]{acc={COLOR_ID}{LABEL}}
+  % For COLOR_ID there must be collaccCOLOR_ID defined
+  pics/acc/.style 2 args={
+    code={ %
+      \node[accset,collacc#1]{#2};
+      }
+  },
+  pics/accsq/.style 2 args={
+      code={ %
+        \node[accsquare,collacc#1]{#2};
+        }
+    },
+  pics/accdm/.style 2 args={
+      code={ %
+        \node[accdiamond,collacc#1]{#2};
+        }
+  },
+  % Construction for labels of edges that have some acceptance
+  % mark. Shifts label further from the edge to avoid ugly clash
+  % with the mark. Usage: pic[pos=.3,left]{l=LABEL}
+  pics/l/.style={
+      code={ %
+        \node[outer sep=2pt] {#1};
+        }
+    }
+}
+
+% Macros for colored acceptance marks used in text. Usage:
+% \tacc{COLOR_ID}{LABEL}
+\def\tacc#1#2{\tikz[smallautomaton,baseline=-3pt] \pic{acc={#1}{#2}};}
+\def\taccsq#1#2{\tikz[smallautomaton,baseline=-3pt] \pic{accsq={#1}{#2}};}
+\def\taccdm#1#2{\tikz[smallautomaton,baseline=-3pt] \pic{accdm={#1}{#2}};}
