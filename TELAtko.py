@@ -927,6 +927,7 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("-F", "--autfile", help="File containing automata in HOA format.")
     parser.add_argument("-O", "--outfile", help="File to print output to.")
+    parser.add_argument("-W", "--worse", action='store_true', help="If enabled, allows TELAtko to return automata with more acceptance marks than the input automata.")
 
     args = parser.parse_args()
 
@@ -938,7 +939,7 @@ def main(argv):
         origin = spot.automaton(a.to_str())    
         process_aut(a) 
 
-        if origin.get_acceptance().used_sets().count() < a.get_acceptance().used_sets().count():   
+        if origin.get_acceptance().used_sets().count() < a.get_acceptance().used_sets().count() and not args.worse:   
             a = origin            
 
         if args.outfile:
