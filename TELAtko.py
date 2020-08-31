@@ -86,8 +86,7 @@ class PACC:
     def set_sat(self, val):
         self.sat = val
 
-    def count_unique_m(self):
-                
+    def count_unique_m(self):                
         inf = []
         fin = []
         for dis in self.formula:
@@ -97,6 +96,14 @@ class PACC:
                 if con.type == MarkType.Fin and con.num not in fin:
                     fin.append(con.num)
         return len(inf), len(fin)
+
+    def count_total_unique_m(self):                
+        um = []
+        for dis in self.formula:
+            for con in dis:
+                if con not in um:
+                    um.append(con)              
+        return len(um)
 
     def max(self):
         m = self.formula[0][0].num
@@ -172,7 +179,7 @@ class PACC:
             if i != index:
                 new_f.append(dis)
             i += 1
-        self.formula = new_f
+        self.formula = new_f    
 
     
 ### PARSE ACC ###
@@ -349,6 +356,7 @@ def simpl_fin_same_dis(aut, acc, scc):
         for con in dis:
             if con.type == MarkType.Fin:
                 fins.append(con)
+                
     for fin1 in fins:
         for fin2 in fins:
             if fin1 is not fin2:
@@ -359,7 +367,6 @@ def simpl_fin_same_dis(aut, acc, scc):
                 if merge:
                     add_dupl_marks(aut, scc, fin2.num, fin1.num)
                     acc.clean_up(aut, scc)
-                    simpl_fin_same_dis(aut, acc, scc)
                     return
 
 
@@ -382,7 +389,7 @@ def simpl_fin_con_subsets(aut, acc, scc, subsets):
                         acc.clean_up(aut, scc)                           
 
 
-def simpl_co_con(aut, acc, scc, compl_sets):
+def simpl_co_con(aut, acc, scc, compl_sets): 
     for co in compl_sets:
         if acc.get_mtype(co[0]) != acc.get_mtype(co[1]):
             inf, fin = co[0], co[1] 
@@ -390,8 +397,7 @@ def simpl_co_con(aut, acc, scc, compl_sets):
                  inf, fin = co[1], co[0]
             inf_i = acc.find_m_dis(inf)
             fin_i = acc.find_m_dis(fin)
-            if all(i in fin_i for i in inf_i):
-                #13
+            if all(i in fin_i for i in inf_i):                
                 for index in reversed(inf_i):
                     acc.rem_from_dis(index, inf)
                 
@@ -404,6 +410,34 @@ def simpl_co_con(aut, acc, scc, compl_sets):
                         acc.rem_from_dis(i, inf)
                 acc.clean_up(aut, scc)
 
+
+#check if inf marks are placed on all edges that do not have fin mark
+def check_implies_marks(aut, scc, fin, inf):
+    for s in scc.states():
+        for e in aut.out(s):
+            if e.dst in scc.states() and not inf in e.acc.sets() and not fin in e.acc.sets():
+                return False
+    return True
+
+
+#(Fin AND Inf), situations where: 'if Fin true then Inf true'; Inf can be removed
+def simpl_fin_implies_inf(aut, acc, scc):
+    for i in range(0, len(acc)):
+        infs = []
+        for con in acc[i]:
+            if con.type == MarkType.Inf:
+                infs.append(con)
+        if not infs:
+            return
+        for con in acc[i]:
+            if con.type == MarkType.Fin:
+                for inf in infs:
+                    if check_implies_marks(aut, scc, con.num, inf.num):                        
+                        acc.rem_from_dis(i, inf.num)
+                        scc_clean_up_edges(aut, acc, scc)
+                        simpl_fin_implies_inf(aut, acc, scc)
+                        return
+    
     
 def simpl_substitute(aut, acc, scc):
     current = scc_current_marks(aut, scc)
@@ -457,7 +491,7 @@ def simpl_false_fin(aut, acc, scc):
 ### SIMPLIFY ###
 
 def simplify(aut, acc, scc):
-    acc_l = acc.acc_len()
+    acc_l = acc.count_total_unique_m()
 
     # remove always false disjuncts
     simpl_substitute(aut, acc, scc)
@@ -472,10 +506,14 @@ def simplify(aut, acc, scc):
     # simplify complementary marks
     simpl_co_con(aut, acc, scc, scc_compl_sets(aut, scc))
 
-    scc_clean_up_edges(aut, acc, scc)
+    #simplify disjuncts where (Fin = True) => (Inf = True)
+    simpl_fin_implies_inf(aut, acc, scc)
 
-    if acc_l > acc.acc_len():
-        simplify(aut, acc, scc)
+    scc_clean_up_edges(aut, acc, scc)
+    acc.clean_up(aut, scc)
+
+    if acc_l > acc.count_total_unique_m():
+        simplify(aut, acc, scc)   
     
 
 ### MERGE AUXILIARY ###
@@ -560,9 +598,16 @@ def acc_quicksort(accs, sccs, low, high):
         acc_quicksort(accs, sccs, pi + 1, high) 
 
 
-def place_con(dis, con, used):
+def place_con(dis, con, used, dis_remaining):
     if con in dis and not used[dis.index(con)]:
         return dis.index(con)
+    remaining = [] #list of numbers of marks that remain unpaired (whatever comes after the current conjunct in the clause)
+    for c in dis_remaining:
+        if con == c or remaining:
+            remaining.append(c.num) 
+    for i in range(len(dis)):
+        if dis[i].type == con.type and not used[i] and dis[i].num not in remaining:
+            return i         
     for i in range(len(dis)):
         if dis[i].type == con.type and not used[i]:            
             return i
@@ -589,7 +634,7 @@ def resolve_depend(aut, acc1, scc1, acc2, scc2):
         if row_i[i] < len(acc2):
             dis2 = acc2[row_i[i]]
         for con in dis2:
-            index = place_con(dis1, con, used)
+            index = place_con(dis1, con, used, dis2)
             if index is not None:
                 if con.num in log:
                     if log[con.num] == dis1[index].num:
@@ -631,7 +676,7 @@ def merge(aut, acc1, scc1, acc2, scc2):
         if row_ind[i] < len(acc2):
             dis2 = acc2[row_ind[i]]
         for con in dis2:
-            index = place_con(dis1, con, used)
+            index = place_con(dis1, con, used, dis2)
             if index is None:
                 new_num = acc1.max() + 1
                 log[1][con.num] = new_num
@@ -777,16 +822,17 @@ def make_equiv(aut, accs, sccs, logs, merged_acc):
                             e.acc.set(m)
         scc_clean_up_edges(aut, merged_acc, sccs[i])
 
+
 ### MAIN ###
+
 def eval_set(aut, mark, scc, m_all_e):
     if mark.num in m_all_e:
         return mark.type == MarkType.Inf
     if mark.num not in scc_current_marks(aut, scc):    
         return mark.type == MarkType.Fin
-    return None
-        
+    return None        
+
 def try_eval(aut, acc, scc):
-    scc_edge_c = 0
     m_all_edges = set(scc_everywhere(aut, scc))
 
     eval_f = False
@@ -809,7 +855,7 @@ def try_eval(aut, acc, scc):
         acc.formula = []
 
 
-def try_eval2(aut, acc, scc, weak):
+def try_eval2(aut, acc, scc, weak):    
     if weak:
         if scc.is_rejecting():
             acc.set_sat(False)
@@ -845,10 +891,9 @@ def process_aut(aut):
 
         try_eval2(aut, acc, scc, weak[q])
         q += 1
-       #try_eval(aut, acc, scc)
         if acc.sat is None:
             simplify(aut, acc, scc)
-        accs.append(acc)
+        accs.append(acc)    
     
     new_acc, logs = merge_accs(aut, sccs, accs)
     if new_acc is None:
@@ -889,36 +934,17 @@ def main(argv):
 
     aut = spot.automata(args.autfile)  
     for a in aut: 
-        origin = spot.automaton(a.to_str())
-        try: 
-            process_aut(a) 
-            #if not spot.are_equivalent(a, origin):
-                #print("\nNOK\n")
+        origin = spot.automaton(a.to_str())    
+        process_aut(a) 
 
-            if origin.get_acceptance().used_sets().count() < a.get_acceptance().used_sets().count():
-                a = origin            
+        if origin.get_acceptance().used_sets().count() < a.get_acceptance().used_sets().count():   
+            a = origin            
 
-        except RuntimeError:         
-            a = origin           
-        
         if args.outfile:
             print_aut(a, args.outfile, "a")
         else:
             print_aut(a, None, " ")               
 
-
-def test_aut(a1, a2): 
-    f = open("summary.txt", "a")
-    if spot.are_equivalent(a1, a2):
-        if a1.get_acceptance().used_sets().max_set() < a2.get_acceptance().used_sets().max_set():
-            f.write("ok, simplified")
-        else:
-            f.write("ok, NOT simplified, (" + str(a1.get_acceptance().used_sets()) + ", " + str(a2.get_acceptance().used_sets()) + ')')
-    else:
-        f.write("nok")
-        print_aut(a1, "err_aut.hoa", "a")
-    f.write('\n')
-    f.close()
 
 if __name__ == "__main__":
    main(sys.argv[1:])
