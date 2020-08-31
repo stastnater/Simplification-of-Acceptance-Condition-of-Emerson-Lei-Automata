@@ -856,6 +856,7 @@ def try_eval(aut, acc, scc):
 
 
 def try_eval2(aut, acc, scc, weak):    
+
     if weak:
         if scc.is_rejecting():
             acc.set_sat(False)
